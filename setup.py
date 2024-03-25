@@ -13,4 +13,13 @@ setup(
     description="saqqara is a simulation-based Inference (SBI) library designed for stochastic gravitational wave background data analysis.",
     long_description=long_description,
     long_description_content_type="text/markdown",
+    install_requires=[
+        "numpy",
+        "jax",
+        "jaxlib",
+        "healpy",
+        "chex",
+        "gw_response",
+    ],
+    package_data={"saqqara": ["defaults/*"]},
 )
