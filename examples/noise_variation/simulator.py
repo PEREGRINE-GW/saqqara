@@ -17,16 +17,18 @@ class LISA_AET(saqqara.SaqqaraSim):
                 "fmin": 3e-5,
                 "fmax": 5e-1,
                 "deltaf": 1e-6,
+                "ngrid": 1000,
                 "noise_approx": False,
             },
         )
-        if self.model_settings.get("name", None) is not "noise_variation":
+        if self.model_settings.get("name", None) != "noise_variation":
             raise ValueError(
                 f"Incorrect model name in config ({self.model_settings.get('name', None)}), check settings are correct."
             )
         self.setup_detector(self.model_settings)
         self.compute_fixed_noise_matrices()
         self.compute_fixed_response()  # TODO: Change name of this function
+        self.setup_coarse_graining()
         self.build_model(self.model_settings)
 
     def setup_detector(self, model_settings):
@@ -56,7 +58,7 @@ class LISA_AET(saqqara.SaqqaraSim):
             * gwr.noise_TM_matrix(
                 TDI_idx=1,  # AET TODO: Generatlise to arbitrary TDI combination
                 frequency=self.f_vec,
-                TM_acceleration_parameters=jnp.array(np.ones(6)),
+                TM_acceleration_parameters=jnp.ones(shape=(1, 6)),
                 arms_matrix_rescaled=self.LISA.detector_arms(
                     time_in_years=jnp.array([0.0])
                 )
@@ -71,23 +73,19 @@ class LISA_AET(saqqara.SaqqaraSim):
             * gwr.noise_OMS_matrix(
                 TDI_idx=1,  # AET TODO: Generatlise to arbitrary TDI combination
                 frequency=self.f_vec,
-                OMS_parameters=jnp.array(np.ones(6)),
+                OMS_parameters=jnp.ones(shape=(1, 6)),
                 arms_matrix_rescaled=self.LISA.detector_arms(
                     time_in_years=jnp.array([0.0])
                 )
                 / self.LISA.armlength,
                 x_vector=self.x_vec,
             )
-        )[
-            0, ...
-        ]  # TODO: Check absolute value makes sense here
-        self.temp_TM_noise = (
-            self.overall_rescaling
-            * gwr.LISA_acceleration_noise(self.f_vec, acc_param=1.0)
+        )[0, ...]
+        self.temp_TM_noise = self.overall_rescaling * gwr.LISA_acceleration_noise(
+            self.f_vec, acc_param=1.0
         )
-        self.temp_OMS_noise = (
-            self.overall_rescaling
-            * gwr.LISA_interferometric_noise(self.f_vec, inter_param=1.0)
+        self.temp_OMS_noise = self.overall_rescaling * gwr.LISA_interferometric_noise(
+            self.f_vec, inter_param=1.0
         )
 
     def compute_fixed_response(self):
@@ -106,8 +104,7 @@ class LISA_AET(saqqara.SaqqaraSim):
         AA_interpolator = interp1d(
             np.log(coarse_f_vec),
             np.log(
-                response.integrated["AET"]["LL"][0, :, 0, 0]
-                / np.sin(coarse_x_vec) ** 2
+                response.integrated["AET"]["LL"][0, :, 0, 0] / np.sin(coarse_x_vec) ** 2
             ),
             fill_value="extrapolate",  # TODO: Fix this to manage the lower freq grid limit
         )
@@ -115,8 +112,7 @@ class LISA_AET(saqqara.SaqqaraSim):
         EE_interpolator = interp1d(
             np.log(coarse_f_vec),
             np.log(
-                response.integrated["AET"]["LL"][0, :, 1, 1]
-                / np.sin(coarse_x_vec) ** 2
+                response.integrated["AET"]["LL"][0, :, 1, 1] / np.sin(coarse_x_vec) ** 2
             ),
             fill_value="extrapolate",
         )
@@ -130,12 +126,12 @@ class LISA_AET(saqqara.SaqqaraSim):
             fill_value="extrapolate",
         )
 
-        self.AA_interpolator = lambda f_vec: np.sin(
-            self.LISA.x(f_vec)
-        ) ** 2 * np.exp(AA_interpolator(np.log(f_vec)))
-        self.EE_interpolator = lambda f_vec: np.sin(
-            self.LISA.x(f_vec)
-        ) ** 2 * np.exp(EE_interpolator(np.log(f_vec)))
+        self.AA_interpolator = lambda f_vec: np.sin(self.LISA.x(f_vec)) ** 2 * np.exp(
+            AA_interpolator(np.log(f_vec))
+        )
+        self.EE_interpolator = lambda f_vec: np.sin(self.LISA.x(f_vec)) ** 2 * np.exp(
+            EE_interpolator(np.log(f_vec))
+        )
         self.TT_interpolator = (
             lambda f_vec: np.sin(self.LISA.x(f_vec)) ** 2
             * (1 - np.cos(self.LISA.x(f_vec)))
@@ -148,14 +144,32 @@ class LISA_AET(saqqara.SaqqaraSim):
                 self.TT_interpolator(self.f_vec),
             ]
         ).T  # AET TODO: Generalise to arbitrary TDI combination, shape = (len(f_vec), 3)
-        self.response_matrix = jnp.einsum(
-            "ij,jk->ijk", self.response_AET, np.eye(3)
+        self.response_matrix = jnp.einsum("ij,jk->ijk", self.response_AET, np.eye(3))
+
+    def setup_coarse_graining(self):
+        self.coarse_grained_bins = np.unique(
+            np.round(
+                np.geomspace(
+                    self.f_vec[0], self.f_vec[-1], self.model_settings["ngrid"]
+                ),
+                decimals=-int(np.ceil(np.log10(self.model_settings["deltaf"]))),
+            )
         )
+        self.coarse_grained_f = (
+            self.coarse_grained_bins[1:] + self.coarse_grained_bins[:-1]
+        ) / 2  # TODO: This needs generalising for weighted coarse graining
+        self.cg_response_AET = np.array(
+            [
+                self.AA_interpolator(self.coarse_grained_f),
+                self.EE_interpolator(self.coarse_grained_f),
+                self.TT_interpolator(self.coarse_grained_f),
+            ]
+        ).T
 
     def generate_gaussian(self, std):
-        return (
-            np.random.normal(0.0, std) + 1j * np.random.normal(0.0, std)
-        ) / np.sqrt(2)
+        return (np.random.normal(0.0, std) + 1j * np.random.normal(0.0, std)) / np.sqrt(
+            2
+        )
 
     def sample_TM(self, size=None):
         if size is not None:
@@ -208,9 +222,7 @@ class LISA_AET(saqqara.SaqqaraSim):
             np.abs(self.generate_gaussian(np.sqrt(temp_sgwb))) ** 2
         )
         return self.transform_samples(
-            jnp.einsum(
-                "jkl,j->jkl", self.response_matrix, quadratic_gaussian_data
-            )
+            jnp.einsum("jkl,j->jkl", self.response_matrix, quadratic_gaussian_data)
         )
 
     def generate_quadratic_TM_data(self, z):
@@ -233,10 +245,7 @@ class LISA_AET(saqqara.SaqqaraSim):
             TM_linear_single_link_data[..., jnp.newaxis],
             self.arms_matrix_rescaled,
             self.x_vec,  # Expand single link data to have pixel dimension
-        )[
-            0, ..., 0
-        ]  # TODO: Check with MP this build_tdi function call
-
+        )[0, ..., 0]
         return jnp.einsum(
             "...i,...j->...ij",
             linear_TM_noise_data,
@@ -250,18 +259,14 @@ class LISA_AET(saqqara.SaqqaraSim):
         )[
             jnp.newaxis, ...
         ]  # Expand to have time dimension
-        OMS_linear_single_link_data = self.generate_gaussian(
-            np.sqrt(temp_OMS_noise)
-        )
+        OMS_linear_single_link_data = self.generate_gaussian(np.sqrt(temp_OMS_noise))
 
         linear_OMS_noise_data = gwr.tdi.build_tdi(
             1,
             OMS_linear_single_link_data[..., jnp.newaxis],
             self.arms_matrix_rescaled,
             self.x_vec,
-        )[
-            0, ..., 0
-        ]  # TODO: Check with MP this build_tdi function call
+        )[0, ..., 0]
         return jnp.einsum(
             "...i,...j->...ij",
             linear_OMS_noise_data,
@@ -275,6 +280,21 @@ class LISA_AET(saqqara.SaqqaraSim):
             np.abs(self.generate_gaussian(np.sqrt(noise_matrix))) ** 2
         )
         return self.transform_samples(quadratic_gaussian_data)
+
+    def generate_coarse_grained_data(self, quadratic_data_AET):
+        # NOTE: The coarse-grained data is pre-divided by the response matrix
+        # to go to strain units
+        out = np.zeros(shape=(len(self.coarse_grained_f) - 1, 3))
+
+        for i in range(len(self.coarse_grained_f) - 1):
+            mask = (self.f_vec >= self.coarse_grained_f[i]) & (
+                self.f_vec < self.coarse_grained_f[i + 1]
+            )
+            for j in range(3):
+                out[i, j] = np.mean(
+                    quadratic_data_AET[mask, j] / self.response_AET[mask, j]
+                )
+        return self.transform_samples(out)
 
     def build_model(self, model_settings):
         z = self.graph.nodes["z"]
@@ -298,3 +318,14 @@ class LISA_AET(saqqara.SaqqaraSim):
                 quadratic_TM_noise_AET,
                 quadratic_OMS_noise_AET,
             )
+        quadratic_data_AET = self.graph.node(
+            "quadratic_data_AET",
+            lambda signal, noise: np.diagonal(signal + noise, axis1=-2, axis2=-1),
+            quadratic_signal_AET,
+            quadratic_noise_AET,
+        )
+        coarse_grained_data = self.graph.node(
+            "coarse_grained_data",
+            self.generate_coarse_grained_data,
+            quadratic_data_AET,
+        )

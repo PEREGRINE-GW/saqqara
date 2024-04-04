@@ -3,9 +3,10 @@ model:
   fmin: 3.e-5
   fmax: 5.e-1
   deltaf: 1.e-6
+  ngrid: 1000
   noise_approx: False
 priors:
-  amp: [-20., -5.]
+  amp: [-13., -8.]
   tilt: [-5., 5.]
   TM: [0., 6.]
   OMS: [0., 30.]
