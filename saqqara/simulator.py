@@ -9,9 +9,7 @@ class SaqqaraSim(swyft.Simulator):
         if "priors" in settings.keys():
             self.construct_prior_from_settings(settings)
         else:
-            raise Warning(
-                "No prior specified in settings, must be specified by hand."
-            )
+            raise Warning("No prior specified in settings, must be specified by hand.")
         # TODO: Figure out how to build graph iteratively
         self.graph = swyft.Graph()
         self.build(self.graph)
@@ -24,9 +22,7 @@ class SaqqaraSim(swyft.Simulator):
         self.parnames = parnames
         self.bounds = bounds
         self.nparams = bounds.shape[0]
-        self.prior = SaqqaraPrior(
-            bounds=bounds, parnames=parnames, name="prior"
-        )
+        self.prior = SaqqaraPrior(bounds=bounds, parnames=parnames, name="prior")
 
     def construct_prior_from_bounds(self, bounds, parnames=None, name=None):
         # TODO: Generalise to non-uniform priors

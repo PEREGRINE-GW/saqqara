@@ -26,9 +26,13 @@ class LISA_AET(saqqara.SaqqaraSim):
                 f"Incorrect model name in config ({self.model_settings.get('name', None)}), check settings are correct."
             )
         self.setup_detector(self.model_settings)
+        print("Detector setup complete")
         self.compute_fixed_noise_matrices()
+        print("Noise matrices computed")
         self.compute_fixed_response()  # TODO: Change name of this function
+        print("Response computed")
         self.setup_coarse_graining()
+        print("Coarse graining setup complete")
         self.build_model(self.model_settings)
 
     def setup_detector(self, model_settings):
@@ -38,10 +42,8 @@ class LISA_AET(saqqara.SaqqaraSim):
             res=model_settings["deltaf"],
             which_orbits="analytic",
         )
-        self.f_vec = self.LISA.frequency_vec(
-            freq_pts=int(
-                np.floor((self.LISA.fmax - self.LISA.fmin) / self.LISA.res + 1)
-            )
+        self.f_vec = jnp.arange(
+            model_settings["fmin"], model_settings["fmax"], model_settings["deltaf"]
         )
         self.pixel_map = gwr.Pixel(NSIDE=8)
         self.x_vec = self.LISA.x(self.f_vec)
@@ -155,9 +157,45 @@ class LISA_AET(saqqara.SaqqaraSim):
                 decimals=-int(np.ceil(np.log10(self.model_settings["deltaf"]))),
             )
         )
-        self.coarse_grained_f = (
-            self.coarse_grained_bins[1:] + self.coarse_grained_bins[:-1]
-        ) / 2  # TODO: This needs generalising for weighted coarse graining
+        self.coarse_grained_f = self.get_coarse_grained_f()
+        self.normalisation = np.real(
+            np.diagonal(
+                3**2 * self.TM_tdi_matrix + 15**2 * self.OMS_tdi_matrix,
+                axis1=1,
+                axis2=2,
+            )
+            / self.response_AET
+        )
+        indices = [
+            0,
+        ]
+        self.norm_matrix = np.ones((len(self.f_vec), 3))
+        self.cg_norm_matrix = np.ones((len(self.coarse_grained_f), 3))
+        counter = 0
+        for i in range(len(self.coarse_grained_bins) - 1):
+            if i != len(self.coarse_grained_bins) - 2:
+                mask = (self.f_vec >= self.coarse_grained_bins[i]) & (
+                    self.f_vec < self.coarse_grained_bins[i + 1]
+                )
+            else:
+                mask = self.f_vec >= self.coarse_grained_bins[i]
+            if not np.any(mask):
+                continue
+            else:
+                max_idx = np.argmax(np.cumsum(mask))
+                self.norm_matrix[mask, :] = np.real(self.normalisation[max_idx, :])
+                self.cg_norm_matrix[counter, :] = np.real(
+                    self.normalisation[max_idx, :]
+                )
+                indices.append(int(max_idx))
+                counter += 1
+
+        self.indices = np.array(indices)
+        self.index_pairs = np.concatenate(
+            [self.indices[:-1, None], self.indices[1:, None]], axis=1
+        )
+        self.lengths = self.index_pairs[:, 1] - self.index_pairs[:, 0]
+        self.lengths[0] = 1  # NOTE: This is a bit of a fix, not necessarily generic
         self.cg_response_AET = np.array(
             [
                 self.AA_interpolator(self.coarse_grained_f),
@@ -165,6 +203,24 @@ class LISA_AET(saqqara.SaqqaraSim):
                 self.TT_interpolator(self.coarse_grained_f),
             ]
         ).T
+
+    def get_coarse_grained_f(self):
+        coarse_grained_f = []
+        for i in range(len(self.coarse_grained_bins) - 1):
+            if i != len(self.coarse_grained_bins) - 2:
+                mask = (self.f_vec >= self.coarse_grained_bins[i]) & (
+                    self.f_vec < self.coarse_grained_bins[i + 1]
+                )
+            else:
+                mask = self.f_vec >= self.coarse_grained_bins[i]
+            if not np.any(mask):
+                print(f"Bin {i} is empty")
+                continue
+            else:
+                coarse_grained_f.append(
+                    (self.coarse_grained_bins[i] + self.coarse_grained_bins[i + 1]) / 2
+                )
+        return np.array(coarse_grained_f)
 
     def generate_gaussian(self, std):
         return (np.random.normal(0.0, std) + 1j * np.random.normal(0.0, std)) / np.sqrt(
@@ -284,17 +340,36 @@ class LISA_AET(saqqara.SaqqaraSim):
     def generate_coarse_grained_data(self, quadratic_data_AET):
         # NOTE: The coarse-grained data is pre-divided by the response matrix
         # to go to strain units
-        out = np.zeros(shape=(len(self.coarse_grained_f) - 1, 3))
-
-        for i in range(len(self.coarse_grained_f) - 1):
-            mask = (self.f_vec >= self.coarse_grained_f[i]) & (
-                self.f_vec < self.coarse_grained_f[i + 1]
+        out = np.zeros(shape=(len(self.coarse_grained_f), 3))
+        counter = 0
+        for i in range(len(self.coarse_grained_bins) - 1):
+            mask = (self.f_vec >= self.coarse_grained_bins[i]) & (
+                self.f_vec < self.coarse_grained_bins[i + 1]
             )
-            for j in range(3):
-                out[i, j] = np.mean(
-                    quadratic_data_AET[mask, j] / self.response_AET[mask, j]
-                )
+            if not np.any(mask):
+                continue
+            else:
+                for j in range(3):
+                    out[counter, j] = np.mean(
+                        quadratic_data_AET[mask, j] / self.response_AET[mask, j]
+                    )
+                counter += 1
         return self.transform_samples(out)
+
+    def generate_coarse_grained_data_from_sum(self, quadratic_data_AET):
+        cumulative_sum = np.cumsum(
+            quadratic_data_AET / self.response_AET / self.norm_matrix,
+            axis=0,
+            dtype=np.float64,
+        )
+        sums = (
+            cumulative_sum[self.index_pairs[:, 1]] * self.cg_norm_matrix
+            - cumulative_sum[self.index_pairs[:, 0]] * self.cg_norm_matrix
+        )
+        sums[0] = (
+            cumulative_sum[0] * self.cg_norm_matrix[0]
+        )  # NOTE: This is a bit of a fix
+        return self.transform_samples(sums / self.lengths[:, None])
 
     def build_model(self, model_settings):
         z = self.graph.nodes["z"]
@@ -326,6 +401,6 @@ class LISA_AET(saqqara.SaqqaraSim):
         )
         coarse_grained_data = self.graph.node(
             "coarse_grained_data",
-            self.generate_coarse_grained_data,
+            self.generate_coarse_grained_data_from_sum,
             quadratic_data_AET,
         )

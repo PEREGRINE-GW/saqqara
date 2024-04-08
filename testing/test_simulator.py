@@ -22,24 +22,18 @@ class TestSimulator(unittest.TestCase):
         self.assertTrue(
             np.all(
                 saqqara_sim.prior.bounds
-                - np.array(
-                    [[-20.0, -5.0], [-5.0, 5.0], [0.0, 6.0], [0.0, 30.0]]
-                )
+                - np.array([[-20.0, -5.0], [-5.0, 5.0], [0.0, 6.0], [0.0, 30.0]])
                 == 0.0
             )
         )
         print(
             np.all(
                 saqqara_sim.prior.bounds
-                - np.array(
-                    [[-20.0, -5.0], [-5.0, 5.0], [0.0, 6.0], [0.0, 30.0]]
-                )
+                - np.array([[-20.0, -5.0], [-5.0, 5.0], [0.0, 6.0], [0.0, 30.0]])
                 == 0.0
             )
         )
-        self.assertListEqual(
-            saqqara_sim.prior.parnames, ["amp", "tilt", "TM", "OMS"]
-        )
+        self.assertListEqual(saqqara_sim.prior.parnames, ["amp", "tilt", "TM", "OMS"])
         self.assertEqual(saqqara_sim.prior.name, "prior")
         self.assertEqual(saqqara_sim.prior.transform_samples, swyft.to_numpy32)
         self.assertTrue("z" in saqqara_sim.graph.nodes)

@@ -18,9 +18,7 @@ class SaqqaraPrior:
             raise ValueError("Bounds must be an (N x 2) array.")
         if parnames is not None:
             if len(parnames) != self.bounds.shape[0]:
-                raise ValueError(
-                    "Bounds and parnames must have the same length."
-                )
+                raise ValueError("Bounds and parnames must have the same length.")
         self.parnames = parnames
         self.transform_samples = swyft.to_numpy32
 
@@ -28,12 +26,16 @@ class SaqqaraPrior:
         if N is None:
             return self.transform_samples(
                 np.random.uniform(
-                    self.bounds[:, 0], self.bounds[:, 1], self.bounds.shape[0]
+                    self.bounds[:, 0],
+                    self.bounds[:, 1],
+                    self.bounds.shape[0],
                 )
             )
         return self.transform_samples(
             np.random.uniform(
-                self.bounds[:, 0], self.bounds[:, 1], (N, self.bounds.shape[0])
+                self.bounds[:, 0],
+                self.bounds[:, 1],
+                (N, self.bounds.shape[0]),
             )
         )
 
@@ -45,9 +47,7 @@ class SaqqaraPrior:
         )
         if ranges is not None and len(ranges.shape) != 1:
             if ranges.shape != self.bounds.shape:
-                raise ValueError(
-                    "Ranges must have the same shape as the bounds."
-                )
+                raise ValueError("Ranges must have the same shape as the bounds.")
             return norm_sample * (ranges[:, 1] - ranges[:, 0]) + ranges[:, 0]
         elif ranges is not None and len(ranges.shape) == 1:
             return norm_sample * (ranges[1] - ranges[0]) + ranges[0]

@@ -64,9 +64,7 @@ class TestPrior(unittest.TestCase):
         settings = saqqara.get_settings(config)
         prior_from_settings = saqqara.get_prior(settings)
         self.assertEqual(prior_from_settings.bounds.shape, (4, 2))
-        self.assertListEqual(
-            prior_from_settings.parnames, ["amp", "tilt", "TM", "OMS"]
-        )
+        self.assertListEqual(prior_from_settings.parnames, ["amp", "tilt", "TM", "OMS"])
         sample = prior_from_settings.sample(100)
         self.assertEqual(sample.shape, (100, 4))
         norm_sample = (sample - prior_from_settings.bounds[:, 0]) / (
