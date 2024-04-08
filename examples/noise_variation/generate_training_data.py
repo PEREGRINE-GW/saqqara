@@ -27,11 +27,11 @@ if __name__ == "__main__":
     config = saqqara.load_settings("default_config.yaml")
     sim = LISA_AET(config)
     Nsamples_per_chunk = 128
-    z_out = []
-    data_out = []
     try:
         while total_sims() < 500_000:
             print("Total simulations so far: ", total_sims())
+            z_out = []
+            data_out = []
             for _ in tqdm.tqdm(range(Nsamples_per_chunk)):
                 sample = sim.sample()
                 z_out.append(sample["z"])
