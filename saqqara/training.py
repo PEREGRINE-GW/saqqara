@@ -8,42 +8,29 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
 
 
-class RatioEstimator(swyft.SwyftModule, swyft.AdamWReduceLROnPlateau):
+class SaqqaraNet(swyft.SwyftModule, swyft.AdamWReduceLROnPlateau):
     def __init__(self, settings={}):
         super().__init__()
         self.training_settings = settings.get("training", {})
         self.training_dir = self.training_settings.get(
-            "training_dir", "doppel_training"
+            "training_dir", "saqqara_training"
         )
-        self.learning_rate = self.training_settings.get("learning_rate", 1e-4)
+        self.learning_rate = self.training_settings.get("learning_rate", 1e-5)
         self.early_stopping_patience = self.training_settings.get(
-            "early_stopping_patience", 7
+            "early_stopping_patience", 100
         )
-        self.num_features = self.training_settings.get("num_features", 1)
-        self.model_estimator = swyft.LogRatioEstimator_1dim(
-            num_features=self.num_features, num_params=1, varnames="model"
-        )
-
-    def compression(self, data):
-        return data
-
-    def forward(self, A, B):
-        data = A["data"]
-        model = B["model"].float()
-        summary = self.compression(data)
-        return self.model_estimator(summary, model)
 
     def configure_callbacks(self):
         lr_monitor = LearningRateMonitor(logging_interval="step")
         early_stop = EarlyStopping(
             monitor="val_loss",
-            patience=getattr(self, "early_stopping_patience", 7),
+            patience=getattr(self, "early_stopping_patience", 100),
         )
         checkpoint = ModelCheckpoint(
             monitor="val_loss",
             mode="min",
-            dirpath=getattr(self, "training_dir", "doppel_training"),
-            filename="doppel-{epoch:02d}-{val_loss:.3f}"
+            dirpath=getattr(self, "training_dir", "saqqara_training"),
+            filename="saqqara-{epoch:02d}-{val_loss:.3f}"
             + f"_id={''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(4))}",
         )
         return [early_stop, checkpoint, lr_monitor]
@@ -88,12 +75,21 @@ def setup_scheduler(optimizer, training_settings={}):
     return lr_scheduler
 
 
-def setup_trainer(device, n_devices, min_epochs, max_epochs, logger=None):
+def setup_trainer(settings, logger=None):
+    training_settings = settings.get(
+        "training",
+        {
+            "device": "cpu",
+            "n_devices": 1,
+            "min_epochs": 1,
+            "max_epochs": 100,
+        },
+    )
     trainer = swyft.SwyftTrainer(
-        accelerator=device,
-        devices=n_devices,
-        min_epochs=min_epochs,
-        max_epochs=max_epochs,
+        accelerator=training_settings["device"],
+        devices=training_settings["n_devices"],
+        min_epochs=training_settings["min_epochs"],
+        max_epochs=training_settings["max_epochs"],
         logger=logger,
     )
     return trainer
