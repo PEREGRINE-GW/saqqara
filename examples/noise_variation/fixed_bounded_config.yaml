@@ -6,8 +6,8 @@ model:
   ngrid: 1000
   noise_approx: False
 priors:
-  amp: [-11.500001, -11.499999]
-  tilt: [-0.000001, 0.000001]
+  amp: [-11.5, -11.5]
+  tilt: [0.0, 0.0]
   TM: [0., 6.]
   OMS: [0., 30.]
 run:

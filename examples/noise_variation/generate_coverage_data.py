@@ -28,7 +28,7 @@ if __name__ == "__main__":
     sim = LISA_AET(config)
     Nsamples_per_chunk = 128
     try:
-        while total_sims() < 2_000:
+        while total_sims() < 20_000:
             print("Total simulations so far: ", total_sims())
             z_out = []
             data_out = []
