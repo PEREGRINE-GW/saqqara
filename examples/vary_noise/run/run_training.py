@@ -19,17 +19,21 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     print(f"\n[INFO] Loading data from config: {args.c}")
-    print("[INFO] Training settings:\n", args.c["train"])
     config = saqqara.load_settings(args.c)
+    print("[INFO] Training settings:\n")
+    for key, value in config["train"].items():
+        print(f"{key}: {value}")
     print("[INFO] Loading simulator")
     sim = LISA_AET(config)
     print("[INFO] Loading network instance")
     network = SignalAET(settings=config, sim=sim)
     print("[INFO] Loading datasets")
     train_dl, val_dl = get_dataloader(config)
-    shutil.copy(args.c, config["train"]["trainer_dir"] + "/training_config.yaml")
+    if not os.path.exists(config["train"]["trainer_dir"]):
+        os.makedirs(config["train"]["trainer_dir"])
+    shutil.copy(args.c, config["train"]["trainer_dir"] + f"/training_config_id={network.rid}.yaml")
     try:
-        logger = saqqara.setup_logger(config)
+        logger = saqqara.setup_logger(config, rid=network.rid)
         trainer = saqqara.setup_trainer(config, logger=logger)
         trainer.fit(network, train_dl, val_dl)
 

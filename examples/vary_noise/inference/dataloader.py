@@ -80,7 +80,7 @@ def setup_dataloaders(
 
 
 def get_dataloader(settings):
-    training_settings = settings.get("training", {})
+    training_settings = settings.get("train", {})
     data_dir = training_settings.get("data_dir", "./simulations")
     dataset = get_datasets(data_dir)
     total_size = training_settings.get("total_size", None)

@@ -29,7 +29,7 @@ train:
   early_stopping_patience: 7
   learning_rate: 7.e-5
   lr_scheduler:
-    type: ReduceLROnPlateua
+    type: ReduceLROnPlateau
     lr_scheduler_factor: 0.1
     lr_scheduler_patience: 100
   logger:

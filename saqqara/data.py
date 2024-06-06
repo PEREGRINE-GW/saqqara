@@ -41,7 +41,7 @@ class NPYDataset(Dataset):
                 if idx >= start_idx and idx < start_idx + array_length:
                     # Calculate the index within the file
                     inner_idx = idx - start_idx
-                    data = np.load(file_path, mmap_mode="r")[inner_idx]
+                    data = np.load(file_path, mmap_mode="c")[inner_idx]
                     return torch.from_numpy(data).float()
             # In case of an index out of bounds error
             raise IndexError("Index out of bounds")
@@ -67,7 +67,7 @@ class NPYDataset(Dataset):
                     if stop_idx >= stop:
                         inner_stop_idx = stop - current_idx + inner_start_idx
                         batch_arrays.append(
-                            np.load(file_path, mmap_mode="r")[
+                            np.load(file_path, mmap_mode="c")[
                                 inner_start_idx:inner_stop_idx:step
                             ]
                         )
@@ -75,7 +75,7 @@ class NPYDataset(Dataset):
                     else:
                         inner_stop_idx = array_length
                         batch_arrays.append(
-                            np.load(file_path, mmap_mode="r")[
+                            np.load(file_path, mmap_mode="c")[
                                 inner_start_idx:inner_stop_idx:step
                             ]
                         )

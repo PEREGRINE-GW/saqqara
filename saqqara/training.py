@@ -11,14 +11,15 @@ from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
 class SaqqaraNet(swyft.SwyftModule, swyft.AdamWReduceLROnPlateau):
     def __init__(self, settings={}):
         super().__init__()
-        self.training_settings = settings.get("training", {})
-        self.training_dir = self.training_settings.get(
-            "training_dir", "saqqara_training"
+        self.training_settings = settings.get("train", {})
+        self.trainer_dir = self.training_settings.get(
+            "trainer_dir", "saqqara_training"
         )
         self.learning_rate = self.training_settings.get("learning_rate", 1e-5)
         self.early_stopping_patience = self.training_settings.get(
             "early_stopping_patience", 100
         )
+        self.rid = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(4))
 
     def configure_callbacks(self):
         lr_monitor = LearningRateMonitor(logging_interval="step")
@@ -29,9 +30,9 @@ class SaqqaraNet(swyft.SwyftModule, swyft.AdamWReduceLROnPlateau):
         checkpoint = ModelCheckpoint(
             monitor="val_loss",
             mode="min",
-            dirpath=getattr(self, "training_dir", "saqqara_training"),
+            dirpath=getattr(self, "trainer_dir", "saqqara_training"),
             filename="saqqara-{epoch:02d}-{val_loss:.3f}"
-            + f"_id={''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(4))}",
+            + f"_id={self.rid}",
         )
         return [early_stop, checkpoint, lr_monitor]
 
@@ -77,7 +78,7 @@ def setup_scheduler(optimizer, training_settings={}):
 
 def setup_trainer(settings, logger=None):
     training_settings = settings.get(
-        "training",
+        "train",
         {
             "device": "cpu",
             "n_devices": 1,
@@ -95,25 +96,28 @@ def setup_trainer(settings, logger=None):
     return trainer
 
 
-def setup_logger(settings):
-    training_settings = settings.get("training", {"logger": {"type": None}})
+def setup_logger(settings, rid=None):
+    training_settings = settings.get("train", {"logger": {"type": None}})
     if training_settings["logger"]["type"] is None:
         logger = None
     elif training_settings["logger"]["type"] == "wandb":
         if "entity" not in training_settings["logger"].keys():
             raise ValueError("(entity) is a required field for WandB logger")
+        run_name = training_settings["logger"].get("name", "saqqara")
+        if rid is not None:
+            run_name += f"_id={rid}"
         logger = WandbLogger(
             offline=training_settings["logger"].get("offline", False),
-            name=training_settings["logger"].get("name", "doppel_run"),
-            project=training_settings["logger"].get("project", "doppel"),
+            name=run_name,
+            project=training_settings["logger"].get("project", "saqqara"),
             entity=training_settings["logger"]["entity"],
             log_model=training_settings["logger"].get("log_model", "all"),
             config=settings,
         )
     elif training_settings["logger"]["type"] == "tensorboard":
         logger = TensorBoardLogger(
-            save_dir=training_settings["logger"].get("save_dir", "doppel_training"),
-            name=training_settings["logger"].get("name", "doppel_run"),
+            save_dir=training_settings["logger"].get("save_dir", "saqqara"),
+            name=training_settings["logger"].get("name", "saqqara"),
             version=None,
             default_hp_metric=False,
         )
