@@ -1,0 +1,41 @@
+model:
+  name: noise_variation
+  fmin: 3.e-5
+  fmax: 5.e-1
+  deltaf: 1.e-6
+  ngrid: 1000
+  noise_approx: False
+priors:
+  amp: [-11.42961597442627, -10.696080207824707]
+  tilt: [-0.7066106200218201, 1.0477334260940552]
+  TM: [0., 6.]
+  OMS: [0., 30.]
+simulate:
+  store_name: /home/alveyjbg/Code/public_releases/saqqara/examples/noise_variation/new_bounded_simulations
+  store_size: 250_000
+  chunk_size: 128
+train:
+  trainer_dir: /home/alveyjbg/Code/public_releases/saqqara/examples/vary_noise/results/bounded_training
+  data_dir: /home/alveyjbg/Code/public_releases/saqqara/examples/noise_variation/new_bounded_simulations
+  total_size: 290_000
+  train_fraction: 0.85
+  batch_size: 4096
+  num_workers: 10
+  device: gpu
+  n_devices: 1
+  min_epochs: 1
+  max_epochs: 100
+  early_stopping_patience: 100
+  learning_rate: 1.e-5
+  lr_scheduler:
+    type: ReduceLROnPlateau
+    lr_scheduler_factor: 0.1
+    lr_scheduler_patience: 3
+  logger:
+    type: wandb
+    name: saqqara
+    project: saqqara
+    entity: j-b-g-alvey
+    offline: False
+    log_model: all
+    save_dir: /home/alveyjbg/Code/public_releases/saqqara/examples/vary_noise/results/bounded_training
