@@ -1,6 +1,6 @@
 import swyft
 import numpy as np
-from .prior import SaqqaraPrior
+from .prior import *
 
 
 class SaqqaraSim(swyft.Simulator):
@@ -16,16 +16,33 @@ class SaqqaraSim(swyft.Simulator):
         self.transform_samples = swyft.to_numpy32
 
     def construct_prior_from_settings(self, settings):
-        # TODO: Generalise to non-uniform priors
+        distribution_mapping = {
+            'Uniform': UniformPrior,
+            'Sine': SinePrior,
+            'Cosine': CosinePrior,
+            'PowerLaw': PowerLawPrior,
+            'Gaussian': GaussianPrior,
+            'LogNormal': LogNormalPrior
+        }
+
         parnames = list(settings.get("priors", {}).keys())
-        bounds = np.array([settings["priors"][p] for p in parnames])
+        bounds = np.array([settings["priors"][p]["bounds"] for p in parnames])
+
+        distributions = []
+        for p in parnames:
+            dist_info = settings["priors"][p]
+            dist_name = dist_info.get('distribution', 'Uniform')  # Default to 'Uniform' if not specified
+            dist_class = distribution_mapping.get(dist_name, UniformPrior)
+            dist_params = dist_info.get('params', {})
+            distributions.append(dist_class(**dist_params))
+
         self.parnames = parnames
         self.bounds = bounds
         self.nparams = bounds.shape[0]
-        self.prior = SaqqaraPrior(bounds=bounds, parnames=parnames, name="prior")
+        self.distributions = distributions
+        self.prior = SaqqaraPrior(bounds=bounds, parnames=parnames, name="prior", distribution=distributions)
 
     def construct_prior_from_bounds(self, bounds, parnames=None, name=None):
-        # TODO: Generalise to non-uniform priors
         self.parnames = parnames
         self.bounds = bounds
         self.prior = SaqqaraPrior(bounds=bounds, parnames=parnames, name=name)

@@ -6,10 +6,23 @@ model:
   ngrid: 1000
   noise_approx: False
 priors:
-  amp: [-13., -8.]
-  tilt: [-5., 5.]
-  TM: [0., 6.]
-  OMS: [0., 30.]
+  amp: 
+    bounds: [-13., -8.]
+    distribution: "Uniform"
+  tilt: 
+    bounds: [-1., 1.]
+    distribution: "Cosine"
+    params: {}
+  TM: 
+    bounds: [0., 1.7]
+    distribution: "Sine"
+    params: {}
+  OMS: 
+    bounds: [0., 30.]
+    distribution: "Gaussian"
+    params: 
+      mean: 15
+      std: 5
 run:
   verbose: False
   simulate: False

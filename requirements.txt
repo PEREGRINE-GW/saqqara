@@ -1,15 +1,7 @@
 swyft==0.4.5
-<<<<<<< HEAD
 gw_response@git+https://github.com/Mauropieroni/GW_response.git
-=======
-gw_response==1.0.0
->>>>>>> origin/6-fr-improved-modular-simulator
 chex==0.1.85
 healpy==1.16.6
 jax==0.4.25
 jaxlib==0.4.25
-<<<<<<< HEAD
 numpy==1.26.4
-=======
-numpy==1.26.4
->>>>>>> origin/6-fr-improved-modular-simulator
