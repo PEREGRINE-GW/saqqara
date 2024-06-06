@@ -95,6 +95,35 @@ class NPYDataset(Dataset):
             return torch.from_numpy(np.vstack(batch_arrays)).float()
 
 
+# TODO: Implement a noise resampling class that grabs same signal but different
+# noise each time __getitem__ is callled. Try on_after_load function?
+
+
+class ResamplingDataset(Dataset, dict):
+    def __init__(self, z_store, signal_store, tm_store, oms_store):
+        self.datasets = {
+            "z": z_store,
+            "signal": signal_store,
+            "tm": tm_store,
+            "oms": oms_store,
+        }
+        self.z = z_store
+        self.signal = signal_store
+        self.tm = tm_store
+        self.oms = oms_store
+        self.total_length = z_store.total_length
+
+    def __len__(self):
+        return self.total_length
+
+    def __getitem__(self, idx):
+        if type(idx) != str:
+            d = {k: v[idx] for k, v in self.datasets.items()}
+            return d
+        else:
+            return self.datasets[idx]
+
+
 class TrainingDataset(Dataset, dict):
     def __init__(self, z_store, data_store):
         self.datasets = {

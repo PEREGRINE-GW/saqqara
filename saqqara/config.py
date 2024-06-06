@@ -45,10 +45,6 @@ def get_settings(settings={}):
         "priors",
         default_config["priors"],
     )
-    settings_to_return["run"] = settings.get(
-        "run",
-        default_config["run"],
-    )
     settings_to_return["simulate"] = settings.get(
         "simulate",
         default_config["simulate"],
@@ -56,9 +52,5 @@ def get_settings(settings={}):
     settings_to_return["train"] = settings.get(
         "train",
         default_config["train"],
-    )
-    settings_to_return["infer"] = settings.get(
-        "infer",
-        default_config["infer"],
     )
     return settings_to_return
