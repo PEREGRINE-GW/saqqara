@@ -3,11 +3,6 @@ priors:
   tilt: [-5., 5.]
   TM: [0., 6.]
   OMS: [0., 30.]
-run:
-  verbose: False
-  simulate: False
-  train: False
-  infer: False
 simulate:
   store_name: data_store
   store_size: 100_000
@@ -22,9 +17,17 @@ train:
   n_devices: 1
   min_epochs: 1
   max_epochs: 100
-  early_stopping_patience: 7
-  learning_rate: 7.e-5
-  num_features: 3
-infer:
-  prior_samples: 100_000
-  observation: None
+  early_stopping_patience: 100
+  learning_rate: 1.e-5
+  lr_scheduler:
+    type: ReduceLROnPlateua
+    lr_scheduler_factor: 0.1
+    lr_scheduler_patience: 100
+  logger:
+    type: wandb
+    name: saqqara
+    project: saqqara
+    entity: wandb-uname
+    offline: False
+    log_model: all
+    save_dir: saqqara-logger
