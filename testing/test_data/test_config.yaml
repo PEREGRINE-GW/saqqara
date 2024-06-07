@@ -1,15 +1,17 @@
 priors:
   amp: 
-    bounds: [-13., -8.]
+    bounds: [-20., -5.]
     distribution: "Uniform"
   tilt: 
-    bounds: [-1., 1.]
-    distribution: "Cosine"
+    bounds: [-5., 5.]
+    distribution: "Uniform"
     params: {}
   TM: 
-    bounds: [0., 1.7]
-    distribution: "Sine"
-    params: {}
+    bounds: [0., 6]
+    distribution: "Gaussian"
+    params:
+      mean: 3
+      std: 1
   OMS: 
     bounds: [0., 30.]
     distribution: "Gaussian"

@@ -27,7 +27,7 @@ class SaqqaraPrior:
                         self.bounds[:, 0],
                         self.bounds[:, 1],
                         self.bounds.shape[0],
-                    )
+                    ).T  # Transpose to match shape (N, nparams)
                 )
             return self.transform_samples(
                 np.random.uniform(
@@ -38,9 +38,11 @@ class SaqqaraPrior:
             )
         else:
             if N is None:
-                N = self.bounds.shape[0]
+                samples = [dist.sample(1, lb, ub) for dist, (lb, ub) in zip(self.distribution, self.bounds)]
+                samples = self.transform_samples(np.array(samples).T)
+                return samples.squeeze(0)  # Ensure the shape is (nparams,)
             samples = [dist.sample(N, lb, ub) for dist, (lb, ub) in zip(self.distribution, self.bounds)]
-            return self.transform_samples(np.array(samples))
+            return self.transform_samples(np.array(samples).T) # Ensure the shape is (N,nparams)
 
     def normalise_sample(self, sample, ranges=None):
         if isinstance(ranges, list):

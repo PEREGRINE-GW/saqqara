@@ -1,8 +1,23 @@
 priors:
-  amp: [-20., -5.]
-  tilt: [-5., 5.]
-  TM: [0., 6.]
-  OMS: [0., 30.]
+  amp: 
+    bounds: [-20., -5.]
+    distribution: "Uniform"
+  tilt: 
+    bounds: [-5., 5.]
+    distribution: "Uniform"
+    params: {}
+  TM: 
+    bounds: [0., 6]
+    distribution: "Gaussian"
+    params:
+      mean: 3
+      std: 1
+  OMS: 
+    bounds: [0., 30.]
+    distribution: "Gaussian"
+    params: 
+      mean: 15
+      std: 5
 simulate:
   store_name: data_store
   store_size: 100_000
