@@ -1,0 +1,37 @@
+model:
+  name: noise_variation
+  fmin: 3.e-5
+  fmax: 5.e-1
+  deltaf: 1.e-6
+  ngrid: 1000
+  noise_approx: False
+priors:
+  amp: [-11.42961597442627, -10.696080207824707]
+  tilt: [-0.7066106200218201, 1.0477334260940552]
+  TM: [0., 6.]
+  OMS: [0., 30.]
+run:
+  verbose: False
+  simulate: False
+  train: False
+  infer: False
+simulate:
+  store_name: data_store
+  store_size: 100_000
+  chunk_size: 500
+train:
+  trainer_dir: training_dir
+  train_fraction: 0.85
+  train_batch_size: 2048
+  val_batch_size: 2048
+  num_workers: 0
+  device: cpu
+  n_devices: 1
+  min_epochs: 1
+  max_epochs: 100
+  early_stopping_patience: 7
+  learning_rate: 7.e-5
+  num_features: 3
+infer:
+  prior_samples: 100_000
+  observation: None

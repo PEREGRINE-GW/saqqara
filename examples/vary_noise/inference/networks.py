@@ -1,0 +1,82 @@
+import torch
+import swyft
+from swyft.networks import OnlineStandardizingLayer
+from swyft.networks import ResidualNetWithChannel
+import saqqara
+
+
+class SignalAET(saqqara.SaqqaraNet):
+    def __init__(self, settings={}, sim=None):
+        super().__init__(settings=settings)
+        if sim is None:
+            raise ValueError("Must pass a LISA_AET simulator instance")
+        self.sim = sim
+        self.num_feat_param = 3  # NOTE: Number of channels (AET)
+        self.num_params = 2  # NOTE: Only training signal parameters
+        self.npts = sim.coarse_grained_f.shape[0]
+        self.nl_AA = OnlineStandardizingLayer(shape=(self.npts,))
+        self.nl_EE = OnlineStandardizingLayer(shape=(self.npts,))
+        self.nl_TT = OnlineStandardizingLayer(shape=(self.npts,))
+        self.nl_AA_nolog = OnlineStandardizingLayer(shape=(self.npts,))
+        self.nl_EE_nolog = OnlineStandardizingLayer(shape=(self.npts,))
+        self.nl_TT_nolog = OnlineStandardizingLayer(shape=(self.npts,))
+        self.resnet = ResidualNetWithChannel(
+            channels=3,
+            in_features=self.npts,
+            out_features=self.num_params,
+            hidden_features=64,
+            num_blocks=2,
+            dropout_probability=0.1,
+            use_batch_norm=True,
+        )
+        self.resnet_no_log = ResidualNetWithChannel(
+            channels=3,
+            in_features=self.npts,
+            out_features=self.num_params,
+            hidden_features=64,
+            num_blocks=2,
+            dropout_probability=0.1,
+            use_batch_norm=True,
+        )
+        self.marginals = self.get_marginals(self.num_params)
+        self.lrs2d = swyft.LogRatioEstimator_Ndim(
+            num_features=2 * self.num_feat_param * self.num_params,
+            marginals=self.marginals,
+            num_blocks=3,
+            hidden_features=64,
+            varnames="z",
+            dropout=0.1,
+        )
+
+    def forward(self, A, B):
+        log_data = torch.log(A["data"])
+
+        # NOTE: reshape to (batch, num_channels, num_freqs)
+        log_data = log_data.transpose(1, 2)
+        norm_AA = self.nl_AA(log_data[..., 0, :])
+        norm_EE = self.nl_EE(log_data[..., 1, :])
+        norm_TT = self.nl_TT(log_data[..., 2, :])
+        full_data = torch.stack([norm_AA, norm_EE, norm_TT], dim=-2)
+
+        no_log_data = torch.exp(full_data)
+        norm_AA_nolog = self.nl_AA_nolog(no_log_data[..., 0, :])
+        norm_EE_nolog = self.nl_EE_nolog(no_log_data[..., 1, :])
+        norm_TT_nolog = self.nl_TT_nolog(no_log_data[..., 2, :])
+        no_log_data = torch.stack([norm_AA_nolog, norm_EE_nolog, norm_TT_nolog], dim=-2)
+
+        compression = self.resnet(full_data)
+        no_log_compression = self.resnet_no_log(no_log_data)
+        s1 = compression.reshape(-1, self.num_params * self.num_feat_param)
+        s2 = no_log_compression.reshape(-1, self.num_params * self.num_feat_param)
+        s = torch.cat((s1, s2), dim=1)
+        lrs2d = self.lrs2d(s, B["z"][:, :2])  # NOTE: Only need 2d logratio
+        return lrs2d  # NOTE: Training 2d logratio only here
+
+    @staticmethod
+    def get_marginals(n_params):
+        marginals = []
+        for i in range(n_params):
+            for j in range(n_params):
+                if j > i:
+                    marginals.append((i, j))
+        return tuple(marginals)

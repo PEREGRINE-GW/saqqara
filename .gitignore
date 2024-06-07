@@ -128,4 +128,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-peregrine/tmnre_store/*
+**/simulations*/*
+**/lightning_logs/*
+**/*.ckpt
+**/wandb/**
