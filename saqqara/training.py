@@ -154,3 +154,8 @@ class GradualWarmupScheduler(_LRScheduler):
             self.after_scheduler.step(epoch)
         else:
             return super(GradualWarmupScheduler, self).step(epoch)
+
+def load_state(network, ckpt):
+    state_dict = torch.load(ckpt)
+    network.load_state_dict(state_dict["state_dict"])
+    return network
