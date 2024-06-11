@@ -11,9 +11,9 @@ priors:
   TM: [0., 6.] # NOTE: Overwritten with samples from N(3.0, 0.6)
   OMS: [0., 30.] # NOTE: Overwritten with samples from N(15.0, 3.0)
 simulate:
-  store_name: data/observations
-  store_size: 256
-  chunk_size: 128
+  store_name: data/fixed_observations
+  store_size: 20_000
+  chunk_size: 100
 train:
   trainer_dir: training_dir
   data_dir: data/observations
