@@ -1,0 +1,42 @@
+model:
+  name: noise_variation
+  fmin: 3.e-5
+  fmax: 5.e-1
+  deltaf: 1.e-6
+  ngrid: 1000
+  noise_approx: False
+priors:
+  amp: [-11.0, -11.0]
+  tilt: [0.0, 0.0]
+  TM: [0., 0.] # Signal only simulations
+  OMS: [0., 0.] # Signal only simulations
+simulate:
+  store_name: data/signal_store
+  store_size: 2_000
+  chunk_size: 128
+train:
+  trainer_dir: training_dir
+  data_dir: data/bounded_simulations
+  total_size: 250_000
+  train_fraction: 0.85
+  train_batch_size: 2048
+  val_batch_size: 2048
+  num_workers: 0
+  device: cpu
+  n_devices: 1
+  min_epochs: 1
+  max_epochs: 100
+  early_stopping_patience: 7
+  learning_rate: 7.e-5
+  lr_scheduler:
+    type: ReduceLROnPlateau
+    lr_scheduler_factor: 0.1
+    lr_scheduler_patience: 100
+  logger:
+    type: wandb
+    name: sampling_properties
+    project: doppel
+    entity: j-b-g-alvey
+    offline: False
+    log_model: all
+    save_dir: doppel_training

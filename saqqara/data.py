@@ -99,29 +99,136 @@ class NPYDataset(Dataset):
 # noise each time __getitem__ is callled. Try on_after_load function?
 
 
-class ResamplingDataset(Dataset, dict):
-    def __init__(self, z_store, signal_store, tm_store, oms_store):
+class RandomSamplingDataset(Dataset, dict):
+    def __init__(self, signal_store, tm_store, oms_store):
         self.datasets = {
-            "z": z_store,
             "signal": signal_store,
             "tm": tm_store,
             "oms": oms_store,
         }
-        self.z = z_store
         self.signal = signal_store
         self.tm = tm_store
         self.oms = oms_store
-        self.total_length = z_store.total_length
+        self.total_length = signal_store.total_length
 
     def __len__(self):
         return self.total_length
 
     def __getitem__(self, idx):
-        if type(idx) != str:
-            d = {k: v[idx] for k, v in self.datasets.items()}
-            return d
-        else:
+        if isinstance(idx, int):
+            signal_idx = np.random.randint(len(self.signal))
+            tm_idx = np.random.randint(len(self.tm))
+            oms_idx = np.random.randint(len(self.oms))
+            signal = self.signal[signal_idx]
+            tm = self.tm[tm_idx]
+            oms = self.oms[oms_idx]
+            return {
+                "signal": np.array(signal),
+                "tm": np.array(tm),
+                "oms": np.array(oms),
+            }
+        elif isinstance(idx, slice):
+            start = idx.start or 0
+            stop = idx.stop or self.total_length
+            step = idx.step or 1
+            if start < 0:
+                start = self.total_length + start
+            if stop < 0:
+                stop = self.total_length + stop
+            if stop > self.total_length:
+                raise IndexError
+            if start < 0:
+                raise IndexError
+            # work out how many samples there will be
+            n_samples = len(range(start, stop, step))
+            signal_samples = []
+            tm_samples = []
+            oms_samples = []
+            for _ in range(n_samples):
+                signal_idx = np.random.randint(len(self.signal))
+                tm_idx = np.random.randint(len(self.tm))
+                oms_idx = np.random.randint(len(self.oms))
+                signal_samples.append(self.signal[signal_idx])
+                tm_samples.append(self.tm[tm_idx])
+                oms_samples.append(self.oms[oms_idx])
+            return {
+                "signal": np.array(signal_samples),
+                "tm": np.array(tm_samples),
+                "oms": np.array(oms_samples),
+            }
+        elif isinstance(idx, tuple):
+            batch = []
+            for _idx in idx:
+                if isinstance(_idx, int):
+                    batch.append(self.__getitem__(_idx))
+                elif isinstance(_idx, slice):
+                    batch.append(self.__getitem__(_idx))
+            signal_arrs = []
+            tm_arrs = []
+            oms_arrs = []
+            for b in batch:
+                if len(b["signal"].shape) > 2:
+                    signal_arrs.append(b["signal"])
+                    tm_arrs.append(b["tm"])
+                    oms_arrs.append(b["oms"])
+                else:
+                    signal_arrs.append(b["signal"].unsqueeze(0))
+                    tm_arrs.append(b["tm"].unsqueeze(0))
+                    oms_arrs.append(b["oms"].unsqueeze(0))
+            return {
+                "signal": np.vstack(signal_arrs),
+                "tm": np.vstack(tm_arrs),
+                "oms": np.vstack(oms_arrs),
+            }
+        elif isinstance(self, str):
             return self.datasets[idx]
+        else:
+            raise ValueError("Invalid index type")
+
+
+class ResamplingTraining(Dataset, dict):
+    def __init__(self, sim, resampling_dataset):
+        self.prior = sim.prior
+        self.f_over_pivot = sim.coarse_grained_f / np.sqrt(sim.f_vec[0] * sim.f_vec[-1])
+        self.resampling_dataset = resampling_dataset
+        self.total_length = len(self.resampling_dataset)
+
+    def __len__(self):
+        return self.total_length
+
+    def __getitem__(self, idx):
+        data = self.resampling_dataset[idx]
+        if len(data["signal"].shape) > 2:
+            z = self.prior.sample(data["signal"].shape[0])
+            out = {
+                "z": torch.from_numpy(z).float(),
+                "data": torch.from_numpy(
+                    np.einsum(
+                        "ij,ijk->ijk",
+                        np.power(self.f_over_pivot[:, None], z[:, 1]).T,
+                        np.einsum(
+                            "i,ijk->ijk", 10 ** z[:, 0] / 10 ** (-11.0), data["signal"]
+                        ),
+                    )
+                    + np.einsum("i,ijk->ijk", z[:, 2] ** 2, data["tm"])
+                    + np.einsum("i,ijk->ijk", z[:, 3] ** 2, data["oms"])
+                ).numpy(),
+            }
+        else:
+            z = self.prior.sample()
+            out = {
+                "z": torch.from_numpy(z).float(),
+                "data": torch.from_numpy(
+                    np.einsum(
+                        "i,ij->ij",
+                        self.f_over_pivot ** z[1],
+                        10 ** z[0] / 10 ** (-11.0) * data["signal"],
+                    )
+                    + z[2] ** 2 * data["tm"]
+                    + z[3] ** 2 * data["oms"]
+                ).float(),
+            }
+        return out
 
 
 class TrainingDataset(Dataset, dict):
