@@ -25,9 +25,9 @@ train:
   device: cpu
   n_devices: 1
   min_epochs: 1
-  max_epochs: 100
+  max_epochs: 20
   early_stopping_patience: 7
-  learning_rate: 7.e-5
+  learning_rate: 1.e-6
   lr_scheduler:
     type: ReduceLROnPlateau
     lr_scheduler_factor: 0.1

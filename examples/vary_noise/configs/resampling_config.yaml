@@ -1,0 +1,20 @@
+model:
+  name: noise_variation
+  fmin: 3.e-5
+  fmax: 5.e-1
+  deltaf: 1.e-6
+  ngrid: 1000
+  noise_approx: False
+priors:
+  amp: [-50.,-50.]
+  tilt: [0.0, 0.0]
+  TM: [1., 1.] # TM only simulations
+  OMS: [1., 1.]
+simulate:
+  store_name: resampling_data
+  tm_store: tm_store
+  oms_store: oms_store
+  cross_store: cross_store
+  signal_store: signal_store
+  store_size: 50_000
+  chunk_size: 128

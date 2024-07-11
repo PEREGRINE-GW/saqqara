@@ -31,7 +31,10 @@ if __name__ == "__main__":
     train_dl, val_dl = get_dataloader(config)
     if not os.path.exists(config["train"]["trainer_dir"]):
         os.makedirs(config["train"]["trainer_dir"])
-    shutil.copy(args.c, config["train"]["trainer_dir"] + f"/training_config_id={network.rid}.yaml")
+    shutil.copy(
+        args.c,
+        config["train"]["trainer_dir"] + f"/training_config_id={network.rid}.yaml",
+    )
     try:
         logger = saqqara.setup_logger(config, rid=network.rid)
         trainer = saqqara.setup_trainer(config, logger=logger)

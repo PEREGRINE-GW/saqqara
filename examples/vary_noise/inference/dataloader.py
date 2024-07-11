@@ -121,11 +121,17 @@ def get_resampling_dataloader(sim, settings):
     signal_data_dir = training_settings.get("signal_dir")
     tm_data_dir = training_settings.get("tm_dir")
     oms_data_dir = training_settings.get("oms_dir")
+    cross_data_dir = training_settings.get("cross_dir")
     signal_dataset = get_data_npy_dataset(signal_data_dir)
     tm_dataset = get_data_npy_dataset(tm_data_dir)
     oms_dataset = get_data_npy_dataset(oms_data_dir)
+    cross_dataset = get_data_npy_dataset(cross_data_dir)
     resampling_dataset = saqqara.RandomSamplingDataset(
-        signal_dataset, tm_dataset, oms_dataset
+        signal_dataset,
+        tm_dataset,
+        oms_dataset,
+        cross_dataset,
+        shuffle=training_settings.get("shuffle", True),
     )
     dataset = saqqara.ResamplingTraining(sim, resampling_dataset)
     total_size = training_settings.get("total_size", None)

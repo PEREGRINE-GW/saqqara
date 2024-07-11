@@ -139,14 +139,18 @@ class LISA_AET(saqqara.SaqqaraSim):
             * (1 - np.cos(self.LISA.x(f_vec)))
             * np.exp(TT_interpolator(np.log(f_vec)))
         )
-        self.response_AET = np.array(
-            [
-                self.AA_interpolator(self.f_vec),
-                self.EE_interpolator(self.f_vec),
-                self.TT_interpolator(self.f_vec),
-            ]
-        ).T  # AET TODO: Generalise to arbitrary TDI combination, shape = (len(f_vec), 3)
-        self.response_matrix = jnp.einsum("ij,jk->ijk", self.response_AET, np.eye(3))
+        self.response_AET = np.real(
+            np.array(
+                [
+                    self.AA_interpolator(self.f_vec),
+                    self.EE_interpolator(self.f_vec),
+                    self.TT_interpolator(self.f_vec),
+                ]
+            ).T
+        )  # AET TODO: Generalise to arbitrary TDI combination, shape = (len(f_vec), 3)
+        self.response_matrix = jnp.real(
+            jnp.einsum("ij,jk->ijk", self.response_AET, np.eye(3))
+        )
 
     def setup_coarse_graining(self):
         self.coarse_grained_bins = np.unique(
@@ -278,8 +282,39 @@ class LISA_AET(saqqara.SaqqaraSim):
             np.abs(self.generate_gaussian(np.sqrt(temp_sgwb))) ** 2
         )
         return self.transform_samples(
-            jnp.einsum("jkl,j->jkl", self.response_matrix, quadratic_gaussian_data)
+            jnp.diagonal(
+                jnp.real(
+                    jnp.einsum(
+                        "jkl,j->jkl", self.response_matrix, quadratic_gaussian_data
+                    )
+                ),
+                axis1=-2,
+                axis2=-1,
+            )
+        )  # NOTE: In general the response could be complex, check later
+
+    def generate_linear_TM_data(self, z):
+        z_noise = z[-2:]
+        temp_TM_noise = jnp.einsum(
+            "i,j->ij", self.generate_temp_TM_noise(z_noise), jnp.ones(6)
+        )[
+            jnp.newaxis, ...
+        ]  # Expand to have time dimension
+        nij = self.generate_gaussian(np.sqrt(temp_TM_noise))
+
+        t_retarded_factor = gwr.utils.arm_length_exponential(
+            self.arms_matrix_rescaled, self.x_vec
         )
+        Dijnji = t_retarded_factor * jnp.roll(nij, 3, axis=-1)
+        TM_linear_single_link_data = nij + Dijnji
+
+        linear_TM_noise_data = gwr.tdi.build_tdi(
+            1,
+            TM_linear_single_link_data[..., jnp.newaxis],
+            self.arms_matrix_rescaled,
+            self.x_vec,  # Expand single link data to have pixel dimension
+        )[0, ..., 0]
+        return linear_TM_noise_data
 
     def generate_quadratic_TM_data(self, z):
         z_noise = z[-2:]
@@ -302,10 +337,36 @@ class LISA_AET(saqqara.SaqqaraSim):
             self.arms_matrix_rescaled,
             self.x_vec,  # Expand single link data to have pixel dimension
         )[0, ..., 0]
-        return jnp.einsum(
-            "...i,...j->...ij",
-            linear_TM_noise_data,
-            jnp.conj(linear_TM_noise_data),
+        return self.transform_samples(
+            jnp.real(
+                jnp.einsum(
+                    "...i,...j->...ij",
+                    linear_TM_noise_data,
+                    jnp.conj(linear_TM_noise_data),
+                )
+            )
+        )
+
+    def generate_linear_OMS_data(self, z):
+        z_noise = z[-2:]
+        temp_OMS_noise = jnp.einsum(
+            "i,j->ij", self.generate_temp_OMS_noise(z_noise), jnp.ones(6)
+        )[
+            jnp.newaxis, ...
+        ]  # Expand to have time dimension
+        OMS_linear_single_link_data = self.generate_gaussian(np.sqrt(temp_OMS_noise))
+
+        linear_OMS_noise_data = gwr.tdi.build_tdi(
+            1,
+            OMS_linear_single_link_data[..., jnp.newaxis],
+            self.arms_matrix_rescaled,
+            self.x_vec,
+        )[0, ..., 0]
+        return linear_OMS_noise_data
+
+    def generate_quadratic_data(self, linear_data):
+        return self.transform_samples(
+            jnp.real(jnp.einsum("...i,...i->...i", linear_data, jnp.conj(linear_data)))
         )
 
     def generate_quadratic_OMS_data(self, z):
@@ -323,10 +384,12 @@ class LISA_AET(saqqara.SaqqaraSim):
             self.arms_matrix_rescaled,
             self.x_vec,
         )[0, ..., 0]
-        return jnp.einsum(
-            "...i,...j->...ij",
-            linear_OMS_noise_data,
-            jnp.conj(linear_OMS_noise_data),
+        return jnp.real(
+            jnp.einsum(
+                "...i,...j->...ij",
+                linear_OMS_noise_data,
+                jnp.conj(linear_OMS_noise_data),
+            )
         )
 
     def generate_quadratic_noise_data(self, z):
@@ -357,10 +420,12 @@ class LISA_AET(saqqara.SaqqaraSim):
         return self.transform_samples(out)
 
     def generate_coarse_grained_data_from_sum(self, quadratic_data_AET):
-        cumulative_sum = np.cumsum(
-            quadratic_data_AET / self.response_AET / self.norm_matrix,
-            axis=0,
-            dtype=np.float64,
+        cumulative_sum = np.array(
+            np.cumsum(
+                quadratic_data_AET / self.response_AET / self.norm_matrix,
+                axis=0,
+                dtype=np.float64,
+            )
         )
         sums = (
             cumulative_sum[self.index_pairs[:, 1]] * self.cg_norm_matrix
@@ -381,21 +446,23 @@ class LISA_AET(saqqara.SaqqaraSim):
                 "quadratic_noise_AET", self.generate_quadratic_noise_data, z
             )
         else:
-            quadratic_TM_noise_AET = self.graph.node(
-                "quadratic_TM_AET", self.generate_quadratic_TM_data, z
+            linear_TM_noise_AET = self.graph.node(
+                "linear_TM_noise_AET", self.generate_linear_TM_data, z
             )
-            quadratic_OMS_noise_AET = self.graph.node(
-                "quadratic_OMS_AET", self.generate_quadratic_OMS_data, z
+            linear_OMS_noise_AET = self.graph.node(
+                "linear_OMS_noise_AET", self.generate_linear_OMS_data, z
             )
             quadratic_noise_AET = self.graph.node(
                 "quadratic_noise_AET",
-                lambda TM, OMS: TM + OMS,
-                quadratic_TM_noise_AET,
-                quadratic_OMS_noise_AET,
+                lambda linear_TM, linear_OMS: self.generate_quadratic_data(
+                    linear_TM + linear_OMS
+                ),
+                linear_TM_noise_AET,
+                linear_OMS_noise_AET,
             )
         quadratic_data_AET = self.graph.node(
             "quadratic_data_AET",
-            lambda signal, noise: np.diagonal(signal + noise, axis1=-2, axis2=-1),
+            lambda signal, noise: signal + noise,
             quadratic_signal_AET,
             quadratic_noise_AET,
         )
