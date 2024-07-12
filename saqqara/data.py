@@ -100,17 +100,13 @@ class NPYDataset(Dataset):
 
 
 class RandomSamplingDataset(Dataset, dict):
-    def __init__(self, signal_store, tm_store, oms_store, cross_store, shuffle=True):
-        self.datasets = {
-            "signal": signal_store,
-            "tm": tm_store,
-            "oms": oms_store,
-        }
-        self.signal = signal_store
-        self.tm = tm_store
-        self.oms = oms_store
-        self.cross = cross_store
-        self.total_length = signal_store.total_length
+    def __init__(
+        self,
+        resampling_store,
+        shuffle=True,
+    ):
+        self.dataset = resampling_store
+        self.total_length = self.dataset.total_length
         self.shuffle = shuffle
 
     def __len__(self):
@@ -119,24 +115,23 @@ class RandomSamplingDataset(Dataset, dict):
     def __getitem__(self, idx):
         if isinstance(idx, int):
             if self.shuffle:
-                signal_idx = np.random.randint(len(self.signal))
-                tm_idx = np.random.randint(len(self.tm))
-                oms_idx = tm_idx # np.random.randint(len(self.oms))
-                cross_idx = tm_idx # np.random.randint(len(self.cross))
+                r_idx = np.random.randint(self.total_length)
             else:
-                signal_idx = idx
-                tm_idx = idx
-                oms_idx = idx
-                cross_idx = idx
-            signal = self.signal[signal_idx]
-            tm = self.tm[tm_idx]
-            oms = self.oms[oms_idx]
-            cross = self.cross[cross_idx]
+                r_idx = idx
+            data = self.dataset[r_idx]
+            tm = data[0]
+            oms = data[1]
+            signal = data[2]
+            tm_oms_cross = data[3]
+            tm_signal_cross = data[4]
+            oms_signal_cross = data[5]
             return {
                 "signal": np.array(signal),
                 "tm": np.array(tm),
                 "oms": np.array(oms),
-                "cross": np.array(cross),
+                "tm_oms_cross": np.array(tm_oms_cross),
+                "tm_signal_cross": np.array(tm_signal_cross),
+                "oms_signal_cross": np.array(oms_signal_cross),
             }
         elif isinstance(idx, slice):
             start = idx.start or 0
@@ -155,27 +150,28 @@ class RandomSamplingDataset(Dataset, dict):
             signal_samples = []
             tm_samples = []
             oms_samples = []
-            cross_samples = []
+            tm_oms_cross_samples = []
+            tm_signal_cross_samples = []
+            oms_signal_cross_samples = []
             for d_idx in range(n_samples):
                 if self.shuffle:
-                    signal_idx = np.random.randint(len(self.signal))
-                    tm_idx = np.random.randint(len(self.tm))
-                    oms_idx = tm_idx # np.random.randint(len(self.oms))
-                    cross_idx = tm_idx # np.random.randint(len(self.cross))
+                    r_idx = np.random.randint(self.total_length)
                 else:
-                    signal_idx = start + d_idx * step
-                    tm_idx = start + d_idx * step
-                    oms_idx = start + d_idx * step
-                    cross_idx = start + d_idx * step
-                signal_samples.append(self.signal[signal_idx])
-                tm_samples.append(self.tm[tm_idx])
-                oms_samples.append(self.oms[oms_idx])
-                cross_samples.append(self.cross[cross_idx])
+                    r_idx = start + d_idx * step
+                data = self.dataset[r_idx]
+                tm_samples.append(data[0])
+                oms_samples.append(data[1])
+                signal_samples.append(data[2])
+                tm_oms_cross_samples.append(data[3])
+                tm_signal_cross_samples.append(data[4])
+                oms_signal_cross_samples.append(data[5])
             return {
                 "signal": np.array(signal_samples),
                 "tm": np.array(tm_samples),
                 "oms": np.array(oms_samples),
-                "cross": np.array(cross_samples),
+                "tm_oms_cross": np.array(tm_oms_cross_samples),
+                "tm_signal_cross": np.array(tm_signal_cross_samples),
+                "oms_signal_cross": np.array(oms_signal_cross_samples),
             }
         elif isinstance(idx, tuple):
             batch = []
@@ -187,23 +183,31 @@ class RandomSamplingDataset(Dataset, dict):
             signal_arrs = []
             tm_arrs = []
             oms_arrs = []
-            cross_arrs = []
+            tm_oms_cross_arrs = []
+            tm_signal_cross_arrs = []
+            oms_signal_cross_arrs = []
             for b in batch:
                 if len(b["signal"].shape) > 2:
                     signal_arrs.append(b["signal"])
                     tm_arrs.append(b["tm"])
                     oms_arrs.append(b["oms"])
-                    cross_arrs.append(b["cross"])
+                    tm_oms_cross_arrs.append(b["tm_oms_cross"])
+                    tm_signal_cross_arrs.append(b["tm_signal_cross"])
+                    oms_signal_cross_arrs.append(b["oms_signal_cross"])
                 else:
                     signal_arrs.append(b["signal"].unsqueeze(0))
                     tm_arrs.append(b["tm"].unsqueeze(0))
                     oms_arrs.append(b["oms"].unsqueeze(0))
-                    cross_arrs.append(b["cross"].unsqueeze(0))
+                    tm_oms_cross_arrs.append(b["tm_oms_cross"].unsqueeze(0))
+                    tm_signal_cross_arrs.append(b["tm_signal_cross"].unsqueeze(0))
+                    oms_signal_cross_arrs.append(b["oms_signal_cross"].unsqueeze(0))
             return {
                 "signal": np.vstack(signal_arrs),
                 "tm": np.vstack(tm_arrs),
                 "oms": np.vstack(oms_arrs),
-                "cross": np.vstack(cross_arrs),
+                "tm_oms_cross": np.vstack(tm_oms_cross_arrs),
+                "tm_signal_cross": np.vstack(tm_signal_cross_arrs),
+                "oms_signal_cross": np.vstack(oms_signal_cross_arrs),
             }
         elif isinstance(self, str):
             return self.datasets[idx]
@@ -222,7 +226,7 @@ class ResamplingTraining(Dataset, dict):
 
     def __len__(self):
         return self.total_length
-    
+
     def sample(self, z, cross=1.0):
         n_sims = z.shape[0] if len(z.shape) > 1 else 1
         if n_sims == 1:
@@ -242,7 +246,28 @@ class ResamplingTraining(Dataset, dict):
                     )
                     + np.einsum("i,ijk->ijk", z[:, 2] ** 2, data["tm"])
                     + np.einsum("i,ijk->ijk", z[:, 3] ** 2, data["oms"])
-                    + cross * np.einsum("i,ijk->ijk", z[:, 2] * z[:, 3], data["cross"])
+                    + cross
+                    * np.einsum("i,ijk->ijk", z[:, 2] * z[:, 3], data["tm_oms_cross"])
+                    + cross
+                    * np.einsum(
+                        "ij,ijk->ijk",
+                        np.power(self.f_over_pivot[:, None], z[:, 1] / 2.0).T,
+                        np.einsum(
+                            "i,ijk->ijk",
+                            10 ** (z[:, 0] / 2.0) / 10 ** (-11.0 / 2.0) * z[:, 2],
+                            data["tm_signal_cross"],
+                        ),
+                    )
+                    + cross
+                    * np.einsum(
+                        "ij,ijk->ijk",
+                        np.power(self.f_over_pivot[:, None], z[:, 1] / 2.0).T,
+                        np.einsum(
+                            "i,ijk->ijk",
+                            10 ** (z[:, 0] / 2.0) / 10 ** (-11.0 / 2.0) * z[:, 3],
+                            data["tm_signal_cross"],
+                        ),
+                    )
                 ).numpy(),
             }
         else:
@@ -256,7 +281,23 @@ class ResamplingTraining(Dataset, dict):
                     )
                     + z[2] ** 2 * data["tm"]
                     + z[3] ** 2 * data["oms"]
-                    + cross * z[2] * z[3] * data["cross"]
+                    + z[2] * z[3] * data["tm_oms_cross"]
+                    + np.einsum(
+                        "i,ij->ij",
+                        self.f_over_pivot ** (z[1] / 2.0),
+                        10 ** (z[0] / 2.0)
+                        / 10 ** (-11.0 / 2.0)
+                        * z[2]
+                        * data["tm_signal_cross"],
+                    )
+                    + np.einsum(
+                        "i,ij->ij",
+                        self.f_over_pivot ** (z[1] / 2.0),
+                        10 ** (z[0] / 2.0)
+                        / 10 ** (-11.0 / 2.0)
+                        * z[3]
+                        * data["oms_signal_cross"],
+                    )
                 ).float(),
             }
         return out
@@ -280,7 +321,25 @@ class ResamplingTraining(Dataset, dict):
                     )
                     + np.einsum("i,ijk->ijk", z[:, 2] ** 2, data["tm"])
                     + np.einsum("i,ijk->ijk", z[:, 3] ** 2, data["oms"])
-                    + np.einsum("i,ijk->ijk", z[:, 2] * z[:, 3], data["cross"])
+                    + np.einsum("i,ijk->ijk", z[:, 2] * z[:, 3], data["tm_oms_cross"])
+                    + np.einsum(
+                        "ij,ijk->ijk",
+                        np.power(self.f_over_pivot[:, None], z[:, 1] / 2.0).T,
+                        np.einsum(
+                            "i,ijk->ijk",
+                            10 ** (z[:, 0] / 2.0) / 10 ** (-11.0 / 2.0) * z[:, 2],
+                            data["tm_signal_cross"],
+                        ),
+                    )
+                    + np.einsum(
+                        "ij,ijk->ijk",
+                        np.power(self.f_over_pivot[:, None], z[:, 1] / 2.0).T,
+                        np.einsum(
+                            "i,ijk->ijk",
+                            10 ** (z[:, 0] / 2.0) / 10 ** (-11.0 / 2.0) * z[:, 3],
+                            data["tm_signal_cross"],
+                        ),
+                    )
                 ).numpy(),
             }
         else:
@@ -298,7 +357,23 @@ class ResamplingTraining(Dataset, dict):
                     )
                     + z[2] ** 2 * data["tm"]
                     + z[3] ** 2 * data["oms"]
-                    + z[2] * z[3] * data["cross"]
+                    + z[2] * z[3] * data["tm_oms_cross"]
+                    + np.einsum(
+                        "i,ij->ij",
+                        self.f_over_pivot ** (z[1] / 2.0),
+                        10 ** (z[0] / 2.0)
+                        / 10 ** (-11.0 / 2.0)
+                        * z[2]
+                        * data["tm_signal_cross"],
+                    )
+                    + np.einsum(
+                        "i,ij->ij",
+                        self.f_over_pivot ** (z[1] / 2.0),
+                        10 ** (z[0] / 2.0)
+                        / 10 ** (-11.0 / 2.0)
+                        * z[3]
+                        * data["oms_signal_cross"],
+                    )
                 ).float(),
             }
         return out

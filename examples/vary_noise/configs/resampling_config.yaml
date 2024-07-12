@@ -6,7 +6,7 @@ model:
   ngrid: 1000
   noise_approx: False
 priors:
-  amp: [-50.,-50.]
+  amp: [-11.,-11.]
   tilt: [0.0, 0.0]
   TM: [1., 1.] # TM only simulations
   OMS: [1., 1.]

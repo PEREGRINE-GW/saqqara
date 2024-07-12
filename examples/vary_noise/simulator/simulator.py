@@ -276,6 +276,23 @@ class LISA_AET(saqqara.SaqqaraSim):
         z_noise = z[-2:]
         return self.TM_noise_matrix(z_noise) + self.OMS_noise_matrix(z_noise)
 
+    def generate_linear_signal_data(self, z):
+        temp_sgwb = self.generate_temp_sgwb(z)
+        linear_gaussian_data = self.generate_gaussian(np.sqrt(temp_sgwb))
+        return self.transform_samples(
+            jnp.diagonal(
+                jnp.real(
+                    jnp.einsum(
+                        "jkl,j->jkl",
+                        jnp.sqrt(self.response_matrix),
+                        linear_gaussian_data,
+                    )
+                ),
+                axis1=-2,
+                axis2=-1,
+            )
+        )
+
     def generate_quadratic_signal_data(self, z):
         temp_sgwb = self.generate_temp_sgwb(z)
         quadratic_gaussian_data = (
@@ -438,8 +455,13 @@ class LISA_AET(saqqara.SaqqaraSim):
 
     def build_model(self, model_settings):
         z = self.graph.nodes["z"]
+        linear_signal_AET = self.graph.node(
+            "linear_signal_AET", self.generate_linear_signal_data, z
+        )
         quadratic_signal_AET = self.graph.node(
-            "quadratic_signal_AET", self.generate_quadratic_signal_data, z
+            "quadratic_signal_AET",
+            lambda linear_signal: self.generate_quadratic_data(linear_signal),
+            linear_signal_AET,
         )
         if model_settings["noise_approx"]:
             quadratic_noise_AET = self.graph.node(
@@ -466,8 +488,22 @@ class LISA_AET(saqqara.SaqqaraSim):
             quadratic_signal_AET,
             quadratic_noise_AET,
         )
+        full_quadratic_data_AET = self.graph.node(
+            "full_quadratic_data_AET",
+            lambda linear_TM, linear_OMS, linear_signal: self.generate_quadratic_data(
+                linear_TM + linear_OMS + linear_signal
+            ),
+            linear_TM_noise_AET,
+            linear_OMS_noise_AET,
+            linear_signal_AET,
+        )
         coarse_grained_data = self.graph.node(
             "coarse_grained_data",
             self.generate_coarse_grained_data_from_sum,
             quadratic_data_AET,
+        )
+        full_coarse_grained_data = self.graph.node(
+            "full_coarse_grained_data",
+            self.generate_coarse_grained_data_from_sum,
+            full_quadratic_data_AET,
         )
