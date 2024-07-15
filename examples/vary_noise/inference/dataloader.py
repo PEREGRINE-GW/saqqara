@@ -113,24 +113,14 @@ def get_dataloader(settings):
         batch_size=batch_size,
     )
 
-
 def get_resampling_dataloader(sim, settings):
     training_settings = settings.get("train", {})
     if training_settings["type"] != "resampling":
         raise ValueError("Training type must be resampling")
-    signal_data_dir = training_settings.get("signal_dir")
-    tm_data_dir = training_settings.get("tm_dir")
-    oms_data_dir = training_settings.get("oms_dir")
-    cross_data_dir = training_settings.get("cross_dir")
-    signal_dataset = get_data_npy_dataset(signal_data_dir)
-    tm_dataset = get_data_npy_dataset(tm_data_dir)
-    oms_dataset = get_data_npy_dataset(oms_data_dir)
-    cross_dataset = get_data_npy_dataset(cross_data_dir)
+    data_dir = training_settings.get("store_name")
+    store_dataset = get_data_npy_dataset(data_dir)
     resampling_dataset = saqqara.RandomSamplingDataset(
-        signal_dataset,
-        tm_dataset,
-        oms_dataset,
-        cross_dataset,
+        store_dataset,
         shuffle=training_settings.get("shuffle", True),
     )
     dataset = saqqara.ResamplingTraining(sim, resampling_dataset)

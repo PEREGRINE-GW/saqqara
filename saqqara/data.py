@@ -265,7 +265,7 @@ class ResamplingTraining(Dataset, dict):
                         np.einsum(
                             "i,ijk->ijk",
                             10 ** (z[:, 0] / 2.0) / 10 ** (-11.0 / 2.0) * z[:, 3],
-                            data["tm_signal_cross"],
+                            data["oms_signal_cross"],
                         ),
                     )
                 ).numpy(),
@@ -281,8 +281,8 @@ class ResamplingTraining(Dataset, dict):
                     )
                     + z[2] ** 2 * data["tm"]
                     + z[3] ** 2 * data["oms"]
-                    + z[2] * z[3] * data["tm_oms_cross"]
-                    + np.einsum(
+                    + cross * z[2] * z[3] * data["tm_oms_cross"]
+                    + cross * np.einsum(
                         "i,ij->ij",
                         self.f_over_pivot ** (z[1] / 2.0),
                         10 ** (z[0] / 2.0)
@@ -290,7 +290,7 @@ class ResamplingTraining(Dataset, dict):
                         * z[2]
                         * data["tm_signal_cross"],
                     )
-                    + np.einsum(
+                    + cross * np.einsum(
                         "i,ij->ij",
                         self.f_over_pivot ** (z[1] / 2.0),
                         10 ** (z[0] / 2.0)
@@ -303,6 +303,7 @@ class ResamplingTraining(Dataset, dict):
         return out
 
     def __getitem__(self, idx):
+        cross = 0.0
         data = self.resampling_dataset[idx]
         if len(data["signal"].shape) > 2:
             if self.shuffle:
@@ -321,8 +322,8 @@ class ResamplingTraining(Dataset, dict):
                     )
                     + np.einsum("i,ijk->ijk", z[:, 2] ** 2, data["tm"])
                     + np.einsum("i,ijk->ijk", z[:, 3] ** 2, data["oms"])
-                    + np.einsum("i,ijk->ijk", z[:, 2] * z[:, 3], data["tm_oms_cross"])
-                    + np.einsum(
+                    + cross * np.einsum("i,ijk->ijk", z[:, 2] * z[:, 3], data["tm_oms_cross"])
+                    + cross * np.einsum(
                         "ij,ijk->ijk",
                         np.power(self.f_over_pivot[:, None], z[:, 1] / 2.0).T,
                         np.einsum(
@@ -331,13 +332,13 @@ class ResamplingTraining(Dataset, dict):
                             data["tm_signal_cross"],
                         ),
                     )
-                    + np.einsum(
+                    + cross * np.einsum(
                         "ij,ijk->ijk",
                         np.power(self.f_over_pivot[:, None], z[:, 1] / 2.0).T,
                         np.einsum(
                             "i,ijk->ijk",
                             10 ** (z[:, 0] / 2.0) / 10 ** (-11.0 / 2.0) * z[:, 3],
-                            data["tm_signal_cross"],
+                            data["oms_signal_cross"],
                         ),
                     )
                 ).numpy(),
@@ -357,8 +358,8 @@ class ResamplingTraining(Dataset, dict):
                     )
                     + z[2] ** 2 * data["tm"]
                     + z[3] ** 2 * data["oms"]
-                    + z[2] * z[3] * data["tm_oms_cross"]
-                    + np.einsum(
+                    + cross * z[2] * z[3] * data["tm_oms_cross"]
+                    + cross * np.einsum(
                         "i,ij->ij",
                         self.f_over_pivot ** (z[1] / 2.0),
                         10 ** (z[0] / 2.0)
@@ -366,7 +367,7 @@ class ResamplingTraining(Dataset, dict):
                         * z[2]
                         * data["tm_signal_cross"],
                     )
-                    + np.einsum(
+                    + cross * np.einsum(
                         "i,ij->ij",
                         self.f_over_pivot ** (z[1] / 2.0),
                         10 ** (z[0] / 2.0)
