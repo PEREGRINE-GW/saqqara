@@ -280,18 +280,21 @@ class LISA_AET(saqqara.SaqqaraSim):
         temp_sgwb = self.generate_temp_sgwb(z)
         linear_gaussian_data = self.generate_gaussian(np.sqrt(temp_sgwb))
         return self.transform_samples(
-            jnp.diagonal(
-                jnp.real(
-                    jnp.einsum(
-                        "jkl,j->jkl",
-                        jnp.sqrt(self.response_matrix),
-                        linear_gaussian_data,
-                    )
-                ),
-                axis1=-2,
-                axis2=-1,
-            )
+            np.sqrt(self.response_AET) * linear_gaussian_data[:, None]
         )
+        # return self.transform_samples(
+        #     jnp.diagonal(
+        #         jnp.real(
+        #             jnp.einsum(
+        #                 "jkl,j->jkl",
+        #                 jnp.sqrt(self.response_matrix),
+        #                 linear_gaussian_data,
+        #             )
+        #         ),
+        #         axis1=-2,
+        #         axis2=-1,
+        #     )
+        # )
 
     def generate_quadratic_signal_data(self, z):
         temp_sgwb = self.generate_temp_sgwb(z)
@@ -299,16 +302,19 @@ class LISA_AET(saqqara.SaqqaraSim):
             np.abs(self.generate_gaussian(np.sqrt(temp_sgwb))) ** 2
         )
         return self.transform_samples(
-            jnp.diagonal(
-                jnp.real(
-                    jnp.einsum(
-                        "jkl,j->jkl", self.response_matrix, quadratic_gaussian_data
-                    )
-                ),
-                axis1=-2,
-                axis2=-1,
-            )
-        )  # NOTE: In general the response could be complex, check later
+            self.response_AET * quadratic_gaussian_data[:, None]
+        )
+        # return self.transform_samples(
+        #     jnp.diagonal(
+        #         jnp.real(
+        #             jnp.einsum(
+        #                 "jkl,j->jkl", self.response_matrix, quadratic_gaussian_data
+        #             )
+        #         ),
+        #         axis1=-2,
+        #         axis2=-1,
+        #     )
+        # )  # NOTE: In general the response could be complex, check later
 
     def generate_linear_TM_data(self, z):
         z_noise = z[-2:]
