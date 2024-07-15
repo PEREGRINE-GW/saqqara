@@ -11,6 +11,6 @@ priors:
   TM: [1., 1.] # TM only simulations
   OMS: [1., 1.]
 simulate:
-  store_name: resampling_data_with_signal
+  store_name: data/resampling_data_with_signal
   store_size: 50_000
   chunk_size: 128

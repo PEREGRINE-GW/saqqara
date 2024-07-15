@@ -39,6 +39,16 @@ class SignalAET(saqqara.SaqqaraNet):
             use_batch_norm=True,
         )
         self.marginals = self.get_marginals(self.num_params)
+        # self.target = settings["train"].get("target", None)
+        # if self.target is not None and self.target == "1d":
+        #     self.lrs2d = swyft.LogRatioEstimator_1dim(
+        #         num_features=2 * self.num_feat_param * self.num_params,
+        #         num_params=self.num_params,
+        #         num_blocks=3,
+        #         hidden_features=64,
+        #         varnames="z",
+        #         dropout=0.1,
+        #     )
         self.lrs2d = swyft.LogRatioEstimator_Ndim(
             num_features=2 * self.num_feat_param * self.num_params,
             marginals=self.marginals,
