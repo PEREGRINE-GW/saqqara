@@ -1,9 +1,9 @@
 <img align="center" height="200" src="./images/saqqara_logo.png">
 
 
-[![version](https://img.shields.io/badge/version-0.0.1-blue)](https://github.com/PEREGRINE-GW/peregrine) [![DOI](https://img.shields.io/badge/DOI-arXiv.2309.07954-brightgreen)](https://arxiv.org/abs/2309.07954)
+[![version](https://img.shields.io/badge/version-0.0.2-blue)](https://github.com/PEREGRINE-GW/saqqara) [![DOI](https://img.shields.io/badge/DOI-arXiv.2309.07954-brightgreen)](https://arxiv.org/abs/2309.07954) [![DOI](https://img.shields.io/badge/DOI-arXiv.2408.xxxx-brightgreen)](https://arxiv.org/abs/2408.xxxx)
 ## Description
-# v0.0.2 available soon | currently under development (use template-powerlaw or agnostic branch for now)
+# v0.0.2 now available | August 2024
 ###### *"Discovered during the 1898 excavation of the tomb of Pa-di-Imen in Saqqara, Egypt, the ***SAQQARA*** bird artifact is dated to about 200 BCE and is of unresolved origin."*
 
 - **SAQQARA** is a Simulation-based Inference (SBI) library designed to perform analysis on stochastic gravitational wave (background) signals (SGWB). It is built on top of the [swyft](https://swyft.readthedocs.io/en/lightning/) code, which implements neural ratio estimation to efficiently access marginal posteriors for all parameters of interest.
@@ -31,9 +31,12 @@
 - e.g. reconstruction of SGWB using SAQQARA.
 
 ## Available Branches:
+- `main` - Newest release, refactored and modular version of saqqara
 - `template-powerlaw` - SGWB search using a powerlaw template
 - `agnostic` - agnostic SGWB search
 
 ## Release Details:
+- v0.0.2 | *August 2024* | Update with refactored, modular saqqara package + varying noie example
+    - [Leveraging Time-Dependent Instrumental Noise for LISA SGWB Analysis]()
 - v0.0.1 | *September 2023* | Public release matching companion paper: 
     - [Simulation-based inference for stochastic gravitational wave background data analysis](https://arxiv.org/abs/2309.07954)
