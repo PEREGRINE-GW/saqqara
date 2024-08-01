@@ -3,7 +3,7 @@ model:
   fmin: 3.e-5
   fmax: 5.e-1
   deltaf: 1.e-6
-  ngrid: 1000
+  ngrid: 2000
   noise_approx: False
 priors:
   amp: [-11.,-11.]
@@ -11,6 +11,6 @@ priors:
   TM: [1., 1.] # TM only simulations
   OMS: [1., 1.]
 simulate:
-  store_name: data/resampling_data_with_signal
+  store_name: data/resampling_three_channel
   store_size: 50_000
   chunk_size: 128

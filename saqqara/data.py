@@ -303,80 +303,99 @@ class ResamplingTraining(Dataset, dict):
         return out
 
     def __getitem__(self, idx):
-        cross = 0.0
-        data = self.resampling_dataset[idx]
-        if len(data["signal"].shape) > 2:
-            if self.shuffle:
-                z = self.prior.sample(data["signal"].shape[0])
+        error_free = False
+        while not error_free:
+            cross = 1.0
+            data = self.resampling_dataset[idx]
+            if len(data["signal"].shape) > 2:
+                if self.shuffle:
+                    z = self.prior.sample(data["signal"].shape[0])
+                else:
+                    z = self.z_store[idx]
+                out = {
+                    "z": torch.from_numpy(z).float(),
+                    "data": torch.from_numpy(
+                        np.einsum(
+                            "ij,ijk->ijk",
+                            np.power(self.f_over_pivot[:, None], z[:, 1]).T,
+                            np.einsum(
+                                "i,ijk->ijk", 10 ** z[:, 0] / 10 ** (-11.0), data["signal"]
+                            ),
+                        )
+                        + np.einsum("i,ijk->ijk", z[:, 2] ** 2, data["tm"])
+                        + np.einsum("i,ijk->ijk", z[:, 3] ** 2, data["oms"])
+                        + cross * np.einsum("i,ijk->ijk", z[:, 2] * z[:, 3], data["tm_oms_cross"])
+                        + cross * np.einsum(
+                            "ij,ijk->ijk",
+                            np.power(self.f_over_pivot[:, None], z[:, 1] / 2.0).T,
+                            np.einsum(
+                                "i,ijk->ijk",
+                                10 ** (z[:, 0] / 2.0) / 10 ** (-11.0 / 2.0) * z[:, 2],
+                                data["tm_signal_cross"],
+                            ),
+                        )
+                        + cross * np.einsum(
+                            "ij,ijk->ijk",
+                            np.power(self.f_over_pivot[:, None], z[:, 1] / 2.0).T,
+                            np.einsum(
+                                "i,ijk->ijk",
+                                10 ** (z[:, 0] / 2.0) / 10 ** (-11.0 / 2.0) * z[:, 3],
+                                data["oms_signal_cross"],
+                            ),
+                        )
+                    ).numpy(),
+                }
             else:
-                z = self.z_store[idx]
-            out = {
-                "z": torch.from_numpy(z).float(),
-                "data": torch.from_numpy(
-                    np.einsum(
-                        "ij,ijk->ijk",
-                        np.power(self.f_over_pivot[:, None], z[:, 1]).T,
+                if self.shuffle:
+                    z = self.prior.sample()
+                else:
+                    z = self.z_store[idx]
+                out = {
+                    "z": torch.from_numpy(z).float(),
+                    "data": torch.from_numpy(
                         np.einsum(
-                            "i,ijk->ijk", 10 ** z[:, 0] / 10 ** (-11.0), data["signal"]
-                        ),
-                    )
-                    + np.einsum("i,ijk->ijk", z[:, 2] ** 2, data["tm"])
-                    + np.einsum("i,ijk->ijk", z[:, 3] ** 2, data["oms"])
-                    + cross * np.einsum("i,ijk->ijk", z[:, 2] * z[:, 3], data["tm_oms_cross"])
-                    + cross * np.einsum(
-                        "ij,ijk->ijk",
-                        np.power(self.f_over_pivot[:, None], z[:, 1] / 2.0).T,
-                        np.einsum(
-                            "i,ijk->ijk",
-                            10 ** (z[:, 0] / 2.0) / 10 ** (-11.0 / 2.0) * z[:, 2],
-                            data["tm_signal_cross"],
-                        ),
-                    )
-                    + cross * np.einsum(
-                        "ij,ijk->ijk",
-                        np.power(self.f_over_pivot[:, None], z[:, 1] / 2.0).T,
-                        np.einsum(
-                            "i,ijk->ijk",
-                            10 ** (z[:, 0] / 2.0) / 10 ** (-11.0 / 2.0) * z[:, 3],
-                            data["oms_signal_cross"],
-                        ),
-                    )
-                ).numpy(),
-            }
-        else:
-            if self.shuffle:
-                z = self.prior.sample()
+                            "i,ij->ij",
+                            self.f_over_pivot ** z[1],
+                            10 ** z[0] / 10 ** (-11.0) * data["signal"],
+                        )
+                        + z[2] ** 2 * data["tm"]
+                        + z[3] ** 2 * data["oms"]
+                        + cross * z[2] * z[3] * data["tm_oms_cross"]
+                        + cross * np.einsum(
+                            "i,ij->ij",
+                            self.f_over_pivot ** (z[1] / 2.0),
+                            10 ** (z[0] / 2.0)
+                            / 10 ** (-11.0 / 2.0)
+                            * z[2]
+                            * data["tm_signal_cross"],
+                        )
+                        + cross * np.einsum(
+                            "i,ij->ij",
+                            self.f_over_pivot ** (z[1] / 2.0),
+                            10 ** (z[0] / 2.0)
+                            / 10 ** (-11.0 / 2.0)
+                            * z[3]
+                            * data["oms_signal_cross"],
+                        )
+                    ).float(),
+                }
+            if torch.isnan(out["data"]).any():
+                error_free = False
+                print("WARNING: NaN in data, resampling...")
+            elif torch.isnan(out["z"]).any():
+                error_free = False
+                print("WARNING: NaN in z, resampling...")
+            elif torch.isinf(out["data"]).any():
+                error_free = False
+                print("WARNING: Inf in data, resampling...")
+            elif torch.isinf(out["z"]).any():
+                error_free = False
+                print("WARNING: Inf in z, resampling...")
+            elif (out["data"] < 0).any():
+                error_free = False
+                print("WARNING: Negative values in data, resampling...")
             else:
-                z = self.z_store[idx]
-            out = {
-                "z": torch.from_numpy(z).float(),
-                "data": torch.from_numpy(
-                    np.einsum(
-                        "i,ij->ij",
-                        self.f_over_pivot ** z[1],
-                        10 ** z[0] / 10 ** (-11.0) * data["signal"],
-                    )
-                    + z[2] ** 2 * data["tm"]
-                    + z[3] ** 2 * data["oms"]
-                    + cross * z[2] * z[3] * data["tm_oms_cross"]
-                    + cross * np.einsum(
-                        "i,ij->ij",
-                        self.f_over_pivot ** (z[1] / 2.0),
-                        10 ** (z[0] / 2.0)
-                        / 10 ** (-11.0 / 2.0)
-                        * z[2]
-                        * data["tm_signal_cross"],
-                    )
-                    + cross * np.einsum(
-                        "i,ij->ij",
-                        self.f_over_pivot ** (z[1] / 2.0),
-                        10 ** (z[0] / 2.0)
-                        / 10 ** (-11.0 / 2.0)
-                        * z[3]
-                        * data["oms_signal_cross"],
-                    )
-                ).float(),
-            }
+                error_free = True
         return out
 
 

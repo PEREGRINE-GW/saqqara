@@ -1,0 +1,45 @@
+model:
+  name: noise_variation
+  fmin: 3.e-5
+  fmax: 5.e-1
+  deltaf: 1.e-6
+  ngrid: 1000
+  noise_approx: False
+priors:
+  amp: [-11.12569522857666, -10.895430564880371]
+  tilt: [-0.434512734413147, 0.6660090684890747]
+  TM: [0., 6.]
+  OMS: [0., 30.]
+simulate:
+  store_name: data/resampling_data_with_signal
+  store_size: 50_000
+  chunk_size: 128
+train:
+  trainer_dir: training_dir
+  type: resampling
+  store_name: data/resampling_data_with_signal
+  channels: A
+  total_size: 50_000
+  train_fraction: 0.7
+  train_batch_size: 8192
+  val_batch_size: 8192
+  num_workers: 8
+  device: gpu
+  n_devices: 1
+  min_epochs: 1
+  max_epochs: 400
+  early_stopping_patience: 400
+  learning_rate: 5.e-5
+  lr_scheduler:
+    type: CosineWithWarmUp
+    T_max: 380
+    eta_min: 8.e-7
+    total_warmup_steps: 20
+  logger:
+    type: wandb
+    name: resampling
+    project: saqqara
+    entity: j-b-g-alvey
+    offline: False
+    log_model: all
+    save_dir: training_dir

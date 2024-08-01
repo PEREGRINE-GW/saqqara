@@ -2,7 +2,7 @@ model:
   name: noise_variation
   fmin: 3.e-5
   fmax: 5.e-1
-  deltaf: 1.e-4
+  deltaf: 1.e-6
   ngrid: 1000
   noise_approx: False
 priors:

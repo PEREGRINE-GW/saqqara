@@ -113,11 +113,11 @@ def get_dataloader(settings):
         batch_size=batch_size,
     )
 
-def get_resampling_dataloader(sim, settings):
+def get_resampling_dataloader(sim, settings, path_to_data=None):
     training_settings = settings.get("train", {})
     if training_settings["type"] != "resampling":
         raise ValueError("Training type must be resampling")
-    data_dir = training_settings.get("store_name")
+    data_dir = training_settings.get("store_name") if path_to_data is None else path_to_data + training_settings.get("store_name")
     store_dataset = get_data_npy_dataset(data_dir)
     resampling_dataset = saqqara.RandomSamplingDataset(
         store_dataset,

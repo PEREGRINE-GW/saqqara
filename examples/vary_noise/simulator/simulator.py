@@ -277,10 +277,10 @@ class LISA_AET(saqqara.SaqqaraSim):
         return self.TM_noise_matrix(z_noise) + self.OMS_noise_matrix(z_noise)
 
     def generate_linear_signal_data(self, z):
-        temp_sgwb = self.generate_temp_sgwb(z)
+        temp_sgwb = np.vstack([self.generate_temp_sgwb(z) for _ in range(3)]).T
         linear_gaussian_data = self.generate_gaussian(np.sqrt(temp_sgwb))
         return self.transform_samples(
-            np.sqrt(self.response_AET) * linear_gaussian_data[:, None]
+            np.sqrt(self.response_AET) * linear_gaussian_data
         )
         # return self.transform_samples(
         #     jnp.diagonal(
@@ -297,12 +297,12 @@ class LISA_AET(saqqara.SaqqaraSim):
         # )
 
     def generate_quadratic_signal_data(self, z):
-        temp_sgwb = self.generate_temp_sgwb(z)
+        temp_sgwb = np.vstack([self.generate_temp_sgwb(z) for _ in range(3)]).T
         quadratic_gaussian_data = (
             np.abs(self.generate_gaussian(np.sqrt(temp_sgwb))) ** 2
         )
         return self.transform_samples(
-            self.response_AET * quadratic_gaussian_data[:, None]
+            self.response_AET * quadratic_gaussian_data
         )
         # return self.transform_samples(
         #     jnp.diagonal(
