@@ -133,3 +133,5 @@ dmypy.json
 **/*.ckpt
 **/wandb/**
 *.npy
+**/examples/vary_noise/data/**
+**/examples/vary_noise/training_dir/**
