@@ -1,5 +1,0 @@
-name            path
-250k_1e-4_512   ./saqqara/77prsmjt/checkpoints/epoch=89-step=35100.ckpt
-1M_1e-4_2048    ./saqqara/7ibs25vo/checkpoints/epoch=89-step=35100.ckpt
-500k_1e-4_512   ./saqqara/kq6wuvsd/checkpoints/epoch=84-step=66385.ckpt
-1M_1e-4_nolog   ./saqqara/n1w1sw86/checkpoints/epoch=98-step=38610.ckpt

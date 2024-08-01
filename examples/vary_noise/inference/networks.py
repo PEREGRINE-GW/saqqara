@@ -30,7 +30,7 @@ class SignalAET(saqqara.SaqqaraNet):
                 self.channel_mask.append(2)
         self.num_feat_param = len(self.channels)  # NOTE: Number of channels (AET)
         self.resnet = ResidualNetWithChannel(
-            channels=len(self.channels), # 3,
+            channels=len(self.channels),  # 3,
             in_features=self.npts,
             out_features=self.num_params,
             hidden_features=64,
@@ -39,7 +39,7 @@ class SignalAET(saqqara.SaqqaraNet):
             use_batch_norm=True,
         )
         self.resnet_no_log = ResidualNetWithChannel(
-            channels=len(self.channels), # 3,
+            channels=len(self.channels),  # 3,
             in_features=self.npts,
             out_features=self.num_params,
             hidden_features=64,
@@ -48,16 +48,6 @@ class SignalAET(saqqara.SaqqaraNet):
             use_batch_norm=True,
         )
         self.marginals = self.get_marginals(self.num_params)
-        # self.target = settings["train"].get("target", None)
-        # if self.target is not None and self.target == "1d":
-        #     self.lrs2d = swyft.LogRatioEstimator_1dim(
-        #         num_features=2 * self.num_feat_param * self.num_params,
-        #         num_params=self.num_params,
-        #         num_blocks=3,
-        #         hidden_features=64,
-        #         varnames="z",
-        #         dropout=0.1,
-        #     )
         self.lrs2d = swyft.LogRatioEstimator_Ndim(
             num_features=2 * self.num_feat_param * self.num_params,
             marginals=self.marginals,
@@ -66,7 +56,6 @@ class SignalAET(saqqara.SaqqaraNet):
             varnames="z",
             dropout=0.1,
         )
-
 
     def forward(self, A, B):
         if torch.isnan(A["data"]).any():
@@ -83,14 +72,18 @@ class SignalAET(saqqara.SaqqaraNet):
         norm_EE = self.nl_EE(log_data[..., 1, :])
         norm_TT = self.nl_TT(log_data[..., 2, :])
         arr_list = [norm_AA, norm_EE, norm_TT]
-        full_data = torch.stack([arr_list[channel] for channel in self.channel_mask], dim=-2)
-        
+        full_data = torch.stack(
+            [arr_list[channel] for channel in self.channel_mask], dim=-2
+        )
+
         no_log_data = torch.exp(torch.stack([norm_AA, norm_EE, norm_TT], dim=-2))
         norm_AA_nolog = self.nl_AA_nolog(no_log_data[..., 0, :])
         norm_EE_nolog = self.nl_EE_nolog(no_log_data[..., 1, :])
         norm_TT_nolog = self.nl_TT_nolog(no_log_data[..., 2, :])
         arr_list_no_log = [norm_AA_nolog, norm_EE_nolog, norm_TT_nolog]
-        no_log_data = torch.stack([arr_list_no_log[channel] for channel in self.channel_mask], dim=-2)
+        no_log_data = torch.stack(
+            [arr_list_no_log[channel] for channel in self.channel_mask], dim=-2
+        )
 
         compression = self.resnet(full_data)
         no_log_compression = self.resnet_no_log(no_log_data)
