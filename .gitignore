@@ -132,3 +132,4 @@ dmypy.json
 **/lightning_logs/*
 **/*.ckpt
 **/wandb/**
+*.npy
