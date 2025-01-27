@@ -57,7 +57,10 @@ git clone git@github.com:PEREGRINE-GW/saqqara.git
 - **PS**: Some features of the `swyft` version in use are in active development. We are happy to resolve issues (if any) that arise during installation.
 ```
 pip install git+https://github.com/undark-lab/swyft.git@f036b15dab0664614b3e3891dd41e25f6f0f230f
-pip install tensorboard psutil gwpy lalsuite bilby chainconsumer multiprocess
+pip install pytorch_lightning==1.8.6
+pip install torchmetrics==0.11.0
+pip install torch=1.13.1
+pip install tensorboard psutil gwpy lalsuite bilby==1.4.1 chainconsumer multiprocess
 pip install ripplegw
 ```
 
